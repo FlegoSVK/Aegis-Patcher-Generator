@@ -1,0 +1,985 @@
+import React, { useState, useRef, useEffect } from 'react';
+import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
+import { 
+  Package, 
+  Image as ImageIcon, 
+  FileText, 
+  CheckCircle2, 
+  Download,
+  FolderOpen,
+  X
+} from 'lucide-react';
+import ReactCrop, { type Crop, PixelCrop, centerCrop, makeAspectCrop } from 'react-image-crop';
+import 'react-image-crop/dist/ReactCrop.css';
+import './index.css';
+
+const escapeXml = (unsafe: string) => {
+  return unsafe.replace(/[<>&'"]/g, (c) => {
+    switch (c) {
+      case '<': return '&lt;';
+      case '>': return '&gt;';
+      case '&': return '&amp;';
+      case '\'': return '&apos;';
+      case '"': return '&quot;';
+      default: return c;
+    }
+  });
+};
+
+export interface GameSettings {
+  id: string;
+  gameName: string;
+  author: string;
+  gameVersion: string;
+  translationVersion: string;
+  translationLink: string;
+  validationPath: string;
+  installRelativePath: string;
+  fullWindowBackground: boolean;
+  textColorMain?: string;
+  textColorSecondary?: string;
+}
+
+export default function App() {
+  const [gameName, setGameName] = useState('Nová Hra');
+  const [author, setAuthor] = useState('Flego');
+  const [validationPath, setValidationPath] = useState('GameName');
+  const [installRelativePath, setInstallRelativePath] = useState('');
+  const [translationVersion, setTranslationVersion] = useState('v1.0.0');
+  const [gameVersion, setGameVersion] = useState('1.0');
+  const [translationLink, setTranslationLink] = useState('https://lokalizacie.sk');
+  const [textColorMain, setTextColorMain] = useState('#F5F7F2');
+  const [textColorSecondary, setTextColorSecondary] = useState('#919B82');
+  const [bannerPreview, setBannerPreview] = useState<string | null>(null);
+  const [bannerFile, setBannerFile] = useState<File | null>(null);
+  const [fullWindowBackground, setFullWindowBackground] = useState(false);
+  const [translationFiles, setTranslationFiles] = useState<{file: File, path: string}[]>([]);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  
+  const [history, setHistory] = useState<GameSettings[]>([]);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('gameSettingsHistory');
+    if (saved) {
+      try {
+        setHistory(JSON.parse(saved));
+      } catch (e) { }
+    }
+  }, []);
+
+  const [cropModalOpen, setCropModalOpen] = useState(false);
+  const [cropImgSrc, setCropImgSrc] = useState('');
+  const imgRef = useRef<HTMLImageElement>(null);
+  const [crop, setCrop] = useState<Crop>();
+  const [completedCrop, setCompletedCrop] = useState<PixelCrop>();
+
+  const bannerInputRef = useRef<HTMLInputElement>(null);
+  const filesInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
+
+  const handleBannerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setCropImgSrc(event.target?.result as string);
+        setCropModalOpen(true);
+      };
+      reader.readAsDataURL(file);
+      // Reset input so the same file could be selected again if canceled
+      if (bannerInputRef.current) {
+        bannerInputRef.current.value = '';
+      }
+    }
+  };
+
+  const onImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const { width, height } = e.currentTarget;
+    const aspect = 540 / 140;
+    const initialCrop = centerCrop(
+      makeAspectCrop(
+        {
+          unit: '%',
+          width: 90,
+        },
+        aspect,
+        width,
+        height
+      ),
+      width,
+      height
+    );
+    setCrop(initialCrop);
+  };
+
+  const handleSaveCrop = async () => {
+    if (completedCrop && imgRef.current) {
+      const image = imgRef.current;
+      const canvas = document.createElement('canvas');
+      const scaleX = image.naturalWidth / image.width;
+      const scaleY = image.naturalHeight / image.height;
+      canvas.width = completedCrop.width * scaleX;
+      canvas.height = completedCrop.height * scaleY;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(
+          image,
+          completedCrop.x * scaleX,
+          completedCrop.y * scaleY,
+          completedCrop.width * scaleX,
+          completedCrop.height * scaleY,
+          0,
+          0,
+          completedCrop.width * scaleX,
+          completedCrop.height * scaleY
+        );
+
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const previewUrl = URL.createObjectURL(blob);
+            setBannerPreview(previewUrl);
+            const file = new File([blob], 'banner.jpg', { type: 'image/jpeg' });
+            setBannerFile(file);
+            setCropModalOpen(false);
+          }
+        }, 'image/jpeg', 0.9);
+      }
+    } else {
+      setCropModalOpen(false);
+    }
+  };
+
+  const handleFilesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const newFiles = Array.from(e.target.files).map((f: File) => ({
+        file: f,
+        path: f.name
+      }));
+      setTranslationFiles(prev => [...prev, ...newFiles]);
+    }
+  };
+
+  const handleFolderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const newFiles = Array.from(e.target.files).map((f: File) => ({
+        file: f,
+        path: f.webkitRelativePath || f.name
+      }));
+      setTranslationFiles(prev => [...prev, ...newFiles]);
+    }
+  };
+
+  const generatePowerShellScript = () => {
+    const eName = escapeXml(gameName);
+    const eAuthor = escapeXml(author);
+    const eGameVersion = escapeXml(gameVersion);
+    const eTranVersion = escapeXml(translationVersion);
+    const eValidationPath = escapeXml(validationPath);
+    const eColorMain = escapeXml(textColorMain || '#F5F7F2');
+    const eColorSecondary = escapeXml(textColorSecondary || '#919B82');
+
+    const psLink = translationLink.replace(/'/g, "''");
+    const psValidationPath = validationPath.replace(/'/g, "''").trim();
+    const psInstallRelativePath = installRelativePath.replace(/'/g, "''").trim();
+
+    return `param()
+Add-Type -AssemblyName PresentationFramework
+Add-Type -AssemblyName System.Windows.Forms
+
+$ErrorActionPreference = "Stop"
+
+try {
+    $bannerPath = Join-Path $PSScriptRoot "Assets\\banner.jpg"
+    $ValidationPath = '${psValidationPath}'
+    $InstallRelativePath = '${psInstallRelativePath}'
+    $AppTranslationLink = '${psLink}'
+
+    $XAML = @"
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Inštalátor - ${eName} SK preklad" Height="460" Width="540"
+        WindowStartupLocation="CenterScreen"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ResizeMode="NoResize">
+    <Border CornerRadius="12" Background="#111111">
+        <Border.Clip>
+            <RectangleGeometry RadiusX="12" RadiusY="12" Rect="0,0,540,460"/>
+        </Border.Clip>
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="140"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            
+            <Image Name="BannerImage" Stretch="UniformToFill" Grid.Row="0" ${fullWindowBackground ? 'Grid.RowSpan="2"' : ''}/>
+            <!-- To match the gradient overlay, we can add a rectangle over the image -->
+            <Rectangle Grid.Row="0" ${fullWindowBackground ? 'Grid.RowSpan="2"' : ''}>
+                <Rectangle.Fill>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                        <GradientStop Color="#00111111" Offset="0.0"/>
+                        <GradientStop Color="${fullWindowBackground ? '#EE111111' : '#FF111111'}" Offset="${fullWindowBackground ? '0.6' : '1.0'}"/>
+                    </LinearGradientBrush>
+                </Rectangle.Fill>
+            </Rectangle>
+
+            <Button Name="CloseButtonTop" Content="✕" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="10" Width="30" Height="30" Background="#44000000" Foreground="${eColorMain}" BorderThickness="0" FontSize="14" Cursor="Hand" Grid.Row="0"/>
+            
+            <StackPanel Grid.Row="1" Margin="30,20,30,20" Background="Transparent">
+            <Grid Margin="0,0,0,20">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="Inštalácia Prekladu: ${eName}" FontSize="18" FontWeight="Light" Foreground="${eColorMain}" Margin="0,0,0,4" TextWrapping="Wrap"/>
+                    <TextBlock Text="Autor: ${eAuthor}" FontSize="12" Foreground="${eColorSecondary}" Margin="0,0,0,2"/>
+                    <TextBlock Text="Pre verziu hry: ${eGameVersion}" FontSize="12" Foreground="${eColorSecondary}" Margin="0,0,0,4"/>
+                    <TextBlock Name="WebLink" Text="Stránka prekladu" TextDecorations="Underline" Foreground="${eColorMain}" FontSize="12" Cursor="Hand"/>
+                </StackPanel>
+                <Border Grid.Column="1" Background="#4C3E4B37" BorderBrush="#3E4B37" BorderThickness="1" CornerRadius="4" Padding="8,4" VerticalAlignment="Top">
+                    <TextBlock Text="${eTranVersion}" FontSize="10" Foreground="${eColorMain}"/>
+                </Border>
+            </Grid>
+            
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
+                <TextBlock Text="Cesta k hre:" FontSize="12" Foreground="${eColorSecondary}"/>
+                <TextBlock Text="(Overenie: ${eValidationPath})" FontSize="10" Foreground="#4A5A40" Margin="8,2,0,0" FontStyle="Italic"/>
+            </StackPanel>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBox Name="PathTextBox" Grid.Column="0" Height="32" FontSize="12" VerticalContentAlignment="Center" Background="#222222" Foreground="${eColorMain}" BorderBrush="#333333" BorderThickness="1" Padding="8,0,8,0"/>
+                <Button Name="BrowseButton" Content="Prehľadávať..." Grid.Column="1" Width="100" Margin="10,0,0,0" Background="Transparent" Foreground="${eColorMain}" BorderBrush="#333333" BorderThickness="1" Cursor="Hand" FontSize="11" Height="32"/>
+            </Grid>
+            
+            <Grid Margin="0,20,0,5">
+                <TextBlock Name="StatusText" Text="Pripravený na inštaláciu" Foreground="${eColorSecondary}" FontSize="10" TextWrapping="NoWrap" HorizontalAlignment="Left"/>
+                <TextBlock Name="ProgressPercent" Text="0%" Foreground="${eColorSecondary}" FontSize="10" HorizontalAlignment="Right"/>
+            </Grid>
+            <ProgressBar Name="InstallProgress" Height="6" Minimum="0" Maximum="100" Background="#222222" Foreground="#3E4B37" BorderThickness="0" Margin="0,0,0,20" IsIndeterminate="False"/>
+            
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Name="CloseButton" Content="Zavrieť" Width="100" Height="32" Margin="0,0,10,0" Background="Transparent" Foreground="${eColorMain}" BorderBrush="#333333" BorderThickness="1" FontSize="12" Cursor="Hand"/>
+                <Button Name="InstallButton" Content="Inštalovať Preklad" Width="140" Height="32" Background="#3E4B37" Foreground="${eColorMain}" BorderThickness="0" FontSize="12" FontWeight="Bold" Cursor="Hand"/>
+            </StackPanel>
+        </StackPanel>
+        </Grid>
+    </Border>
+</Window>
+"@
+
+    $reader = (New-Object System.Xml.XmlNodeReader ([xml]$XAML))
+    $Form = [Windows.Markup.XamlReader]::Load($reader)
+
+    $BannerImage = $Form.FindName("BannerImage")
+    if ($BannerImage -and (Test-Path $bannerPath)) {
+        try {
+            $uri = New-Object System.Uri($bannerPath)
+            $BannerImage.Source = New-Object System.Windows.Media.Imaging.BitmapImage -ArgumentList $uri
+        } catch { }
+    }
+
+    $Form.Add_MouseLeftButtonDown({
+        param($sender, $e)
+        try {
+            if ($e.LeftButton -eq [System.Windows.Input.MouseButtonState]::Pressed) {
+                $Form.DragMove()
+            }
+        } catch { }
+    })
+
+    $PathTextBox = $Form.FindName("PathTextBox")
+    $BrowseButton = $Form.FindName("BrowseButton")
+    $InstallButton = $Form.FindName("InstallButton")
+    $CloseButtonTop = $Form.FindName("CloseButtonTop")
+    $CloseButton = $Form.FindName("CloseButton")
+    $StatusText = $Form.FindName("StatusText")
+    $InstallProgress = $Form.FindName("InstallProgress")
+    $ProgressPercent = $Form.FindName("ProgressPercent")
+    $WebLink = $Form.FindName("WebLink")
+    
+    if ($WebLink -and !([string]::IsNullOrWhiteSpace($AppTranslationLink))) {
+        $WebLink.Add_MouseLeftButtonDown({
+            param($sender, $e)
+            try { 
+                Start-Process $AppTranslationLink 
+                $e.Handled = $true
+            } catch { }
+        })
+        $WebLink.Add_MouseEnter({
+            $WebLink.Foreground = "${eColorSecondary}"
+        })
+        $WebLink.Add_MouseLeave({
+            $WebLink.Foreground = "${eColorMain}"
+        })
+    } elseif ($WebLink) {
+        $WebLink.Visibility = "Collapsed"
+    }
+
+    $BrowseButton.Add_Click({
+        $folderBrowser = New-Object System.Windows.Forms.FolderBrowserDialog
+        $folderBrowser.Description = "Vyberte hlavnú zložku hry"
+        if ($folderBrowser.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+            $PathTextBox.Text = $folderBrowser.SelectedPath
+        }
+    })
+
+    $CloseButtonTop.Add_Click({ $Form.Close() })
+    $CloseButton.Add_Click({ $Form.Close() })
+
+    $InstallButton.Add_Click({
+        $selectedPath = $PathTextBox.Text
+        if ([string]::IsNullOrWhiteSpace($selectedPath) -or !(Test-Path $selectedPath)) {
+            [System.Windows.Forms.MessageBox]::Show("Prosím, vyberte platnú cestu k hre.", "Chyba", 0, 16)
+            return
+        }
+        
+        $ValidationPathClean = $ValidationPath.Trim('\\')
+        if ([string]::IsNullOrWhiteSpace($ValidationPathClean)) {
+            $isValid = $true
+        } else {
+            $selectedBaseName = Split-Path $selectedPath -Leaf
+            $validationBaseName = Split-Path $ValidationPathClean -Leaf
+            
+            if ($selectedPath -match ([regex]::Escape($ValidationPathClean) + "$")) {
+                $isValid = $true
+            } elseif ($selectedBaseName -eq $validationBaseName -or $selectedBaseName -eq $ValidationPathClean) {
+                $isValid = $true
+            } else {
+                $isValid = $false
+            }
+        }
+        
+        if (-not $isValid) {
+            $msgResult = [System.Windows.Forms.MessageBox]::Show("Vybraná cesta ($selectedPath) sa pravdepodobne nezhoduje s očakávanou hrou ($ValidationPath).\`n\`nChcete napriek tomu inštalovať do tejto zložky?", "Upozornenie", 4, 48)
+            if ($msgResult -ne 6) {
+                return
+            }
+        }
+        
+        $targetInstallPath = $selectedPath
+        if (-not [string]::IsNullOrWhiteSpace($InstallRelativePath)) {
+            $targetInstallPath = Join-Path $selectedPath $InstallRelativePath
+        }
+        
+        if (-not (Test-Path $targetInstallPath)) {
+            try { New-Item -ItemType Directory -Force -Path $targetInstallPath | Out-Null } catch { }
+        }
+        
+        $InstallButton.IsEnabled = $false
+        $BrowseButton.Visibility = "Collapsed"
+        $InstallProgress.IsIndeterminate = $true
+        $StatusText.Text = "Inštalujem..."
+        if ($ProgressPercent) { $ProgressPercent.Text = "Inštalujem" }
+        
+        try {
+            $src = Join-Path $PSScriptRoot "Assets"
+            if (Test-Path $src) {
+                $assets = Get-ChildItem -Path $src | Where-Object { $_.Name -ne 'banner.jpg' }
+                foreach ($item in $assets) {
+                    Copy-Item -Path $item.FullName -Destination $targetInstallPath -Recurse -Force
+                    try { [System.Windows.Forms.Application]::DoEvents() } catch { }
+                }
+            }
+            
+            $InstallProgress.IsIndeterminate = $false
+            $InstallProgress.Value = 100
+            $StatusText.Text = "Inštalácia bola úspešná!"
+            if ($ProgressPercent) { $ProgressPercent.Text = "100%" }
+            $InstallButton.Content = "Hotovo"
+            $InstallButton.IsEnabled = $true
+            # Workaround to clear previous events (just change what click does)
+            $InstallButton.Add_Click({ $Form.Close() })
+        } catch {
+            $InstallProgress.IsIndeterminate = $false
+            $StatusText.Text = "Chyba pri inštalácii."
+            if ($ProgressPercent) { $ProgressPercent.Text = "Chyba" }
+            [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, "Chyba", 0, 16)
+            $InstallButton.IsEnabled = $true
+            $BrowseButton.Visibility = "Visible"
+            $BrowseButton.IsEnabled = $true
+        }
+    })
+
+    [void]$Form.ShowDialog()
+
+} catch {
+    [System.Windows.Forms.MessageBox]::Show("Kritická chyba inštalátora: \`n$($_.Exception.Message)", "Chyba", 0, 16)
+}
+`;
+  };
+
+  const generateBatchScript = () => {
+    return `@echo off
+chcp 65001 >nul
+echo Spustam instalator prekladu...
+powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Install.ps1"`;
+  };
+
+  const handleGenerate = async () => {
+    if (!gameName || !author || !validationPath) {
+      alert('Prosím vyplňte všetky textové polia');
+      return;
+    }
+
+    setIsGenerating(true);
+    setSuccessMessage('');
+
+    const newSetting: GameSettings = {
+      id: Date.now().toString(),
+      gameName,
+      author,
+      gameVersion,
+      translationVersion,
+      translationLink,
+      validationPath,
+      installRelativePath,
+      fullWindowBackground,
+      textColorMain,
+      textColorSecondary,
+    };
+    
+    setHistory(prev => {
+      const existingIdx = prev.findIndex(item => item.gameName === gameName && item.gameName !== '');
+      let updated = [...prev];
+      if (existingIdx >= 0) {
+        updated[existingIdx] = { ...newSetting, id: updated[existingIdx].id };
+      } else {
+        updated = [newSetting, ...prev];
+      }
+      localStorage.setItem('gameSettingsHistory', JSON.stringify(updated));
+      return updated;
+    });
+
+    try {
+      const zip = new JSZip();
+      
+      // PowerShell Installer with UTF-8 BOM
+      const ps1Content = '\uFEFF' + generatePowerShellScript();
+      zip.file("Install.ps1", ps1Content);
+      
+      // Batch launcher
+      zip.file("Spustit_Preklad.bat", generateBatchScript());
+
+      // Assets folder
+      const assetsFolder = zip.folder("Assets");
+      
+      // Add banner
+      if (bannerFile && assetsFolder) {
+        assetsFolder.file("banner.jpg", bannerFile);
+      }
+
+      // Add translation files
+      if (translationFiles.length > 0 && assetsFolder) {
+        for (const item of translationFiles) {
+          assetsFolder.file(item.path, item.file);
+        }
+      }
+
+      // Generate the zip async
+      const content = await zip.generateAsync({ type: "blob" });
+      
+      // Save
+      const safeGameName = gameName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+      const safeGameVersion = gameVersion.replace(/[^a-z0-9.]/gi, '_').toLowerCase();
+      const safeTranVersion = translationVersion.replace(/[^a-z0-9.-]/gi, '_').toLowerCase();
+      saveAs(content, `${safeGameName}_Hra_${safeGameVersion}_Preklad_${safeTranVersion}.zip`);
+
+      setSuccessMessage('ZIP archív bol úspešne vygenerovaný!');
+      setTimeout(() => setSuccessMessage(''), 5000);
+      
+    } catch (err) {
+      console.error(err);
+      alert('Došlo k chybe pri vytváraní archívu.');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-[#0D110C] text-[#F5F7F2] font-sans flex flex-col overflow-hidden">
+      
+      {showHistoryModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="bg-[#131A11] border border-[#3E4B37] rounded-xl shadow-2xl overflow-hidden max-w-[500px] w-full flex flex-col transform transition-all">
+            <div className="p-4 border-b border-[#3E4B37]/30 flex justify-between items-center bg-[#0D110C]">
+              <h3 className="text-[#F5F7F2] font-bold uppercase tracking-wider text-sm">História nastavení</h3>
+              <button 
+                onClick={() => setShowHistoryModal(false)}
+                className="text-[#919B82] hover:text-[#F5F7F2] transition-colors"
+                title="Zavrieť"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="p-4 max-h-[60vh] overflow-y-auto space-y-2 custom-scrollbar">
+              {history.length === 0 ? (
+                <p className="text-[#919B82] text-sm text-center py-4 italic">Žiadna história. Vygenerujte inštalátor pre novú hru.</p>
+              ) : (
+                history.map(item => (
+                  <div key={item.id} className="flex justify-between items-center bg-[#1A2416] border border-[#3E4B37]/50 hover:border-[#919B82] rounded p-3 transition-colors">
+                    <div 
+                      className="flex-1 cursor-pointer overflow-hidden mr-4" 
+                      onClick={() => {
+                        setGameName(item.gameName);
+                        setAuthor(item.author);
+                        setGameVersion(item.gameVersion);
+                        setTranslationVersion(item.translationVersion);
+                        setTranslationLink(item.translationLink);
+                        setValidationPath(item.validationPath);
+                        setInstallRelativePath(item.installRelativePath || '');
+                        setFullWindowBackground(item.fullWindowBackground || false);
+                        setTextColorMain(item.textColorMain || '#F5F7F2');
+                        setTextColorSecondary(item.textColorSecondary || '#919B82');
+                        setShowHistoryModal(false);
+                      }}
+                    >
+                      <h4 className="text-[#F5F7F2] font-semibold text-sm truncate">{item.gameName || 'Nepomenovaná hra'}</h4>
+                      <div className="text-[10px] text-[#919B82] mt-1 space-x-2">
+                        <span>Hra: {item.gameVersion}</span>
+                        <span>Preklad: {item.translationVersion}</span>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (window.confirm(`Naozaj chcete vymazať nastavenia pre hru "${item.gameName}"?`)) {
+                          setHistory(prev => {
+                            const updated = prev.filter(h => h.id !== item.id);
+                            localStorage.setItem('gameSettingsHistory', JSON.stringify(updated));
+                            return updated;
+                          });
+                        }
+                      }}
+                      className="text-red-500/80 hover:text-red-400 text-[10px] uppercase tracking-wider font-bold py-2 px-3 bg-red-950/30 rounded border border-red-900/50 hover:border-red-500/50 transition-colors"
+                    >
+                      Vymazať
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <header className="h-16 border-b border-[#3E4B37]/30 flex items-center justify-between px-4 md:px-8 bg-[#0D110C] z-10">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-[#3E4B37] rounded flex items-center justify-center font-bold text-sm">A</div>
+          <h1 className="text-lg font-bold tracking-tight uppercase hidden md:block">Aegis <span className="text-[#919B82]">Patcher Generator</span></h1>
+        </div>
+        <div className="flex items-center gap-4 md:gap-6 text-[9px] md:text-[11px] uppercase tracking-widest text-[#919B82]">
+          <button 
+            onClick={() => setShowHistoryModal(true)}
+            className="hover:text-[#F5F7F2] transition-colors border border-[#3E4B37] rounded px-3 py-1.5 hover:bg-[#3E4B37]/20 flex items-center gap-1 cursor-pointer"
+          >
+            História
+          </button>
+          <span className="hidden sm:inline">Build Engine v2.4.0</span>
+          <span className="h-4 w-[1px] bg-[#3E4B37] hidden sm:inline"></span>
+          <span className="text-[#F5F7F2]">Session: {author || 'Flego'}</span>
+        </div>
+      </header>
+
+      <main className="flex-1 grid grid-cols-1 lg:grid-cols-[400px_1fr] overflow-hidden">
+        
+        {/* LEFT: Controls Panel */}
+        <aside className="border-r border-[#3E4B37]/20 flex flex-col bg-[#0D110C] z-10 overflow-hidden">
+          <div className="flex-1 overflow-y-auto p-6 md:p-8 flex flex-col gap-6 custom-scrollbar">
+            <section>
+            <h2 className="text-xs font-bold text-[#919B82] uppercase mb-4 tracking-wider">Základné Informácie</h2>
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <label className="block text-[10px] uppercase text-[#919B82] ml-1">Názov Hry</label>
+                <input 
+                  type="text" 
+                  value={gameName}
+                  onChange={(e) => setGameName(e.target.value)}
+                  className="w-full bg-[#131A11] border border-[#3E4B37] text-[#F5F7F2] rounded-[6px] p-[10px] text-[13px] focus:outline-none focus:border-[#919B82] transition-colors"
+                />
+              </div>
+              
+              <div className="space-y-1">
+                <label className="block text-[10px] uppercase text-[#919B82] ml-1">Autor Prekladu</label>
+                <input 
+                  type="text" 
+                  value={author}
+                  onChange={(e) => setAuthor(e.target.value)}
+                  className="w-full bg-[#131A11] border border-[#3E4B37] text-[#F5F7F2] rounded-[6px] p-[10px] text-[13px] focus:outline-none focus:border-[#919B82] transition-colors"
+                />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="block text-[10px] uppercase text-[#919B82] ml-1">Verzia prekladu</label>
+                  <input 
+                    type="text" 
+                    value={translationVersion}
+                    onChange={(e) => setTranslationVersion(e.target.value)}
+                    className="w-full bg-[#131A11] border border-[#3E4B37] text-[#F5F7F2] rounded-[6px] p-[10px] text-[13px] focus:outline-none focus:border-[#919B82] transition-colors"
+                  />
+                </div>
+                
+                <div className="space-y-1">
+                  <label className="block text-[10px] uppercase text-[#919B82] ml-1">Na verziu hry</label>
+                  <input 
+                    type="text" 
+                    value={gameVersion}
+                    onChange={(e) => setGameVersion(e.target.value)}
+                    className="w-full bg-[#131A11] border border-[#3E4B37] text-[#F5F7F2] rounded-[6px] p-[10px] text-[13px] focus:outline-none focus:border-[#919B82] transition-colors"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-[10px] uppercase text-[#919B82] ml-1">Link na stránku prekladu</label>
+                <input 
+                  type="text" 
+                  value={translationLink}
+                  onChange={(e) => setTranslationLink(e.target.value)}
+                  className="w-full bg-[#131A11] border border-[#3E4B37] text-[#F5F7F2] rounded-[6px] p-[10px] text-[13px] focus:outline-none focus:border-[#919B82] transition-colors"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="block text-[10px] uppercase text-[#919B82] ml-1">Farba Textu (Hlavná)</label>
+                  <div className="flex bg-[#131A11] border border-[#3E4B37] rounded-[6px] p-1 gap-2 items-center">
+                    <input
+                      type="color"
+                      value={textColorMain}
+                      onChange={(e) => setTextColorMain(e.target.value)}
+                      className="w-8 h-8 rounded shrink-0 bg-transparent cursor-pointer border-none p-0"
+                    />
+                    <input
+                      type="text"
+                      value={textColorMain}
+                      onChange={(e) => setTextColorMain(e.target.value.toUpperCase())}
+                      className="w-full bg-transparent text-[#F5F7F2] text-[13px] focus:outline-none uppercase font-mono"
+                      maxLength={7}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-[10px] uppercase text-[#919B82] ml-1">Farba Textu (Sekundárna)</label>
+                  <div className="flex bg-[#131A11] border border-[#3E4B37] rounded-[6px] p-1 gap-2 items-center">
+                    <input
+                      type="color"
+                      value={textColorSecondary}
+                      onChange={(e) => setTextColorSecondary(e.target.value)}
+                      className="w-8 h-8 rounded shrink-0 bg-transparent cursor-pointer border-none p-0"
+                    />
+                    <input
+                      type="text"
+                      value={textColorSecondary}
+                      onChange={(e) => setTextColorSecondary(e.target.value.toUpperCase())}
+                      className="w-full bg-transparent text-[#F5F7F2] text-[13px] focus:outline-none uppercase font-mono"
+                      maxLength={7}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-[10px] uppercase text-[#919B82] ml-1">Overovacia Cesta (napr. názov zložky hry)</label>
+                <input 
+                  type="text" 
+                  value={validationPath}
+                  onChange={(e) => setValidationPath(e.target.value)}
+                  placeholder="napr. Crimson Desert"
+                  className="w-full bg-[#131A11] border border-[#3E4B37] text-[#F5F7F2] rounded-[6px] p-[10px] text-[13px] focus:outline-none focus:border-[#919B82] transition-colors font-mono"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-[10px] uppercase text-[#919B82] ml-1">Cesta na uloženie prekladu (nepovinné)</label>
+                <input 
+                  type="text" 
+                  value={installRelativePath}
+                  onChange={(e) => setInstallRelativePath(e.target.value)}
+                  placeholder="napr. TheEpicProject\Content\Paks (nechajte prázdne pre koreň hry)"
+                  className="w-full bg-[#131A11] border border-[#3E4B37] text-[#F5F7F2] rounded-[6px] p-[10px] text-[13px] focus:outline-none focus:border-[#919B82] transition-colors font-mono"
+                />
+              </div>
+            </div>
+          </section>
+
+          <section>
+            <h2 className="text-xs font-bold text-[#919B82] uppercase mb-4 tracking-wider">Multimédiá a Súbory</h2>
+            <div className="flex flex-col gap-2 mb-4">
+              <div className="flex gap-2">
+                <input 
+                  type="file" 
+                  accept="image/png, image/jpeg" 
+                  className="hidden" 
+                  ref={bannerInputRef} 
+                  onChange={handleBannerChange}
+                />
+                <button 
+                  onClick={() => bannerInputRef.current?.click()}
+                  className="flex-1 bg-transparent border border-[#3E4B37] text-[#919B82] rounded-[6px] py-2 text-xs font-semibold cursor-pointer hover:bg-[#3E4B37]/20 transition-colors truncate px-2"
+                >
+                  + Obrázok
+                </button>
+              </div>
+
+              <label className="flex items-center gap-2 cursor-pointer mt-1 pl-1 group">
+                <div className="relative flex items-center justify-center">
+                  <input 
+                    type="checkbox" 
+                    checked={fullWindowBackground}
+                    onChange={(e) => setFullWindowBackground(e.target.checked)}
+                    className="peer appearance-none w-4 h-4 rounded-sm border border-[#3E4B37] bg-[#131A11] checked:bg-[#3E4B37] transition-colors cursor-pointer"
+                  />
+                  <svg className="absolute w-3 h-3 text-[#F5F7F2] opacity-0 peer-checked:opacity-100 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                </div>
+                <span className="text-[11px] lg:text-xs text-[#919B82] group-hover:text-[#F5F7F2] transition-colors">Obrázok na celé okno inštalátora</span>
+              </label>
+            </div>
+            <div className="flex gap-2 mb-4">
+              <input 
+                type="file" 
+                multiple
+                className="hidden" 
+                ref={filesInputRef} 
+                onChange={handleFilesChange}
+              />
+              <input 
+                type="file" 
+                webkitdirectory=""
+                multiple
+                className="hidden" 
+                ref={folderInputRef} 
+                onChange={handleFolderChange}
+              />
+              <div className="flex flex-col sm:flex-row gap-2">
+                <button 
+                  onClick={() => filesInputRef.current?.click()}
+                  className="flex-1 bg-transparent border border-[#3E4B37] text-[#919B82] rounded-[6px] py-2 text-[11px] lg:text-xs font-semibold cursor-pointer hover:bg-[#3E4B37]/20 transition-colors truncate px-2"
+                >
+                  + Súbory
+                </button>
+                <button 
+                  onClick={() => folderInputRef.current?.click()}
+                  className="flex-1 bg-transparent border border-[#3E4B37] text-[#919B82] rounded-[6px] py-2 text-[11px] lg:text-xs font-semibold cursor-pointer hover:bg-[#3E4B37]/20 transition-colors truncate px-2"
+                >
+                  + Priečinok
+                </button>
+              </div>
+            </div>
+
+            {bannerPreview && (
+              <div className="mb-4 aspect-[4/1] w-full rounded-md overflow-hidden bg-black/50 border border-[#3E4B37] relative group">
+                <img src={bannerPreview} alt="Banner Preview" className="w-full h-full object-cover opacity-80" />
+                <div className="absolute inset-0 bg-black/70 flex items-center justify-center gap-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button 
+                    onClick={() => setCropModalOpen(true)}
+                    className="px-4 py-2 bg-[#3E4B37] hover:bg-[#4C5B43] text-[#F5F7F2] text-xs font-bold uppercase tracking-wider rounded transition-colors"
+                  >
+                    Upraviť
+                  </button>
+                  <button 
+                    onClick={() => { setBannerPreview(null); setBannerFile(null); }}
+                    className="px-4 py-2 bg-red-900/80 hover:bg-red-800 text-white text-xs font-bold uppercase tracking-wider rounded transition-colors"
+                  >
+                    Odstrániť
+                  </button>
+                </div>
+              </div>
+            )}
+            
+            {translationFiles.length > 0 && (
+              <div className="space-y-1.5 max-h-32 overflow-y-auto custom-scrollbar">
+                {translationFiles.slice(0, 50).map((f, i) => (
+                  <div key={i} className="bg-[#3E4B37]/20 border-l-[3px] border-[#3E4B37] px-3 py-1.5 min-h-[30px] flex justify-between items-center text-[11px]">
+                    <span className="truncate mr-2 text-[#F5F7F2]" title={f.path}>{f.path}</span>
+                    <span className="opacity-50 flex-shrink-0 text-[#919B82] font-mono">{(f.file.size / (1024*1024)).toFixed(1)} MB</span>
+                  </div>
+                ))}
+                {translationFiles.length > 50 && (
+                  <div className="bg-[#3E4B37]/20 border-l-[3px] border-[#3E4B37] px-3 py-1.5 min-h-[30px] flex justify-center items-center text-[10px] text-[#919B82] italic">
+                    ... a ďalších {translationFiles.length - 50} súborov
+                  </div>
+                )}
+                <button 
+                  onClick={() => setTranslationFiles([])}
+                  className="w-full text-center text-red-500/80 hover:text-red-400 text-[10px] pt-1"
+                >
+                  Vymazať zoznam ({translationFiles.length})
+                </button>
+              </div>
+            )}
+          </section>
+          </div>
+
+          <div className="p-4 md:p-6 border-t border-[#3E4B37]/20 shrink-0 bg-[#0D110C]">
+            <button
+              onClick={handleGenerate}
+              disabled={isGenerating}
+              className="w-full bg-[#3E4B37] text-[#F5F7F2] rounded-[6px] py-2.5 font-bold text-sm uppercase tracking-widest shadow-lg shadow-[#1A2416] border-none cursor-pointer hover:bg-[#4d5c44] transition-all duration-200 disabled:opacity-50"
+            >
+              {isGenerating ? 'Generujem Balík...' : 'Vygenerovať ZIP Balík'}
+            </button>
+          </div>
+        </aside>
+        
+        {/* RIGHT: Mockup Preview */}
+        <section className="bg-[#090C08] relative flex items-center justify-center p-4 lg:p-12 overflow-hidden flex-1 border-t lg:border-t-0 border-[#3E4B37]/20 z-0">
+          <div className="absolute top-8 left-10 text-[10px] uppercase tracking-widest text-[#3E4B37] font-bold hidden md:block">
+            Live Preview &bull; WPF Patcher Mockup
+          </div>
+          
+          <div className="w-full lg:w-[540px] h-auto lg:h-[460px] bg-[#111] rounded-[12px] overflow-hidden shadow-[0_25px_50px_-12px_rgba(0,0,0,0.7)] border border-[#333] flex flex-col scale-90 sm:scale-100 transition-transform origin-center relative">
+            
+            {/* Full Window Background */}
+            {fullWindowBackground && bannerPreview && (
+              <div className="absolute inset-0 z-0">
+                <img src={bannerPreview} alt="Full Banner" className="w-full h-full object-cover" />
+              </div>
+            )}
+            
+            {/* Top Gradient Overlay */}
+            <div className={`absolute top-0 left-0 right-0 ${fullWindowBackground ? 'bottom-0' : 'h-[140px]'} z-10 pointer-events-none ${fullWindowBackground ? 'bg-gradient-to-b from-[#111111]/0 to-[#111111]/90' : 'bg-gradient-to-b from-[#111111]/0 to-[#111111]'}`}></div>
+
+            <button className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center bg-black/30 hover:bg-black/50 text-[#F5F7F2] border-none rounded-sm z-30 transition-colors font-bold text-sm cursor-default">
+              ✕
+            </button>
+            
+            {/* Banner Content (only if not full window) */}
+            {!fullWindowBackground && (
+              <div className="h-[120px] lg:h-[140px] bg-gradient-to-br from-[#1A2416] to-[#3E4B37] flex items-center justify-center relative overflow-hidden z-0">
+                <div className="text-center w-full h-full">
+                  {bannerPreview ? (
+                    <img src={bannerPreview} alt="Banner" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-full relative z-10 w-full px-4">
+                      <h3 className="text-xl lg:text-2xl font-serif italic text-[#F5F7F2] truncate w-full">{gameName || 'Nová Hra'}</h3>
+                      <p className="text-[8px] lg:text-[10px] uppercase tracking-[0.3em] opacity-80 mt-1 lg:mt-2">Slovenský Preklad</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            
+            {/* Default Banner (if fullWindow active but no image) */}
+            {fullWindowBackground && !bannerPreview && (
+              <div className="absolute inset-0 z-0 bg-gradient-to-br from-[#1A2416] to-[#3E4B37]"></div>
+            )}
+            
+            {/* Content */}
+            <div className={`flex-1 p-6 lg:p-8 flex flex-col z-20 ${fullWindowBackground && 'bg-transparent'}`}>
+              <div className="flex justify-between items-start mb-6">
+                <div className="space-y-1 overflow-hidden pr-2">
+                  <h4 className="text-base lg:text-lg font-light truncate w-full" style={{ color: textColorMain }}>Inštalácia Prekladu: {gameName || 'Nová Hra'}</h4>
+                  <p className="text-[11px] lg:text-xs truncate w-full" style={{ color: textColorSecondary }}>Autor: {author || 'Flego'}</p>
+                  <p className="text-[11px] lg:text-xs truncate w-full" style={{ color: textColorSecondary }}>Pre verziu hry: {gameVersion}</p>
+                  <a href={translationLink} target="_blank" rel="noopener noreferrer" className="text-[11px] lg:text-xs underline inline-block mt-1 truncate max-w-full" style={{ color: textColorMain }}>
+                    Stránka prekladu
+                  </a>
+                </div>
+                <div className="text-right shrink-0">
+                  <span className="text-[9px] lg:text-[10px] bg-[#3E4B37]/30 px-2 py-1 rounded border border-[#3E4B37]" style={{ color: textColorMain }}>{translationVersion || 'v1.0.0'}</span>
+                </div>
+              </div>
+              
+              <div className="my-2">
+                <div className="flex items-baseline gap-2 mb-1">
+                  <p className="text-[11px] lg:text-xs" style={{ color: textColorSecondary }}>Cesta k hre:</p>
+                  <span className="text-[10px] text-[#4A5A40] italic truncate flex-1">(Overenie: {validationPath})</span>
+                </div>
+                <div className="flex gap-2.5 items-center">
+                  <div className="flex-1 bg-[#222] border border-[#333] px-2 h-8 text-[11px] lg:text-xs flex items-center" style={{ color: textColorMain }}>
+                    
+                  </div>
+                  <button className="w-[100px] h-8 bg-transparent border border-[#333] text-[11px] hover:bg-[#1a1a1a] cursor-default transition-colors shrink-0" style={{ color: textColorMain }}>
+                    Prehľadávať...
+                  </button>
+                </div>
+              </div>
+              
+              <div className="mt-auto space-y-[20px]">
+                <div className="space-y-[5px]">
+                  <div className="flex justify-between text-[9px] lg:text-[10px]" style={{ color: textColorSecondary }}>
+                    <span>Pripravený na inštaláciu</span>
+                    <span>0%</span>
+                  </div>
+                  <div className="h-[6px] bg-[#222]">
+                    <div className="h-full w-0 bg-[#3E4B37]"></div>
+                  </div>
+                </div>
+                <div className="flex gap-[10px] pt-1 lg:pt-2 justify-end mb-[5px]">
+                  <button className="w-[100px] h-8 bg-transparent border border-[#333] text-[11px] lg:text-xs hover:bg-[#1a1a1a] cursor-default transition-colors" style={{ color: textColorMain }}>
+                    Zavrieť
+                  </button>
+                  <button className="w-[140px] h-8 bg-[#3E4B37] text-[11px] lg:text-xs font-bold border-none cursor-default" style={{ color: textColorMain }}>
+                    Inštalovať Preklad
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="absolute bottom-8 right-10 text-[9px] text-[#3E4B37] max-w-[200px] text-right uppercase hidden md:block">
+            Návrh GUI inštalátora je generovaný automaticky podľa XAML šablóny Aegis.
+          </div>
+
+          {/* Notification Toast */}
+          <div className={`absolute top-4 lg:top-8 right-1/2 translate-x-1/2 lg:translate-x-0 lg:right-8 bg-[#1A2416] border border-[#919B82] text-[#F5F7F2] px-6 py-4 rounded-md shadow-2xl flex items-center gap-3 transition-all duration-300 transform ${successMessage ? 'translate-y-0 opacity-100 z-50' : '-translate-y-10 opacity-0 pointer-events-none'}`}>
+            <CheckCircle2 className="text-[#919B82] w-5 h-5 flex-shrink-0" />
+            <span className="font-semibold text-sm whitespace-nowrap">{successMessage}</span>
+          </div>
+        </section>
+      </main>
+
+      {/* Crop Modal */}
+      {cropModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="bg-[#131A11] border border-[#3E4B37] rounded-xl shadow-2xl overflow-hidden max-w-[800px] w-full flex flex-col">
+            <div className="p-4 border-b border-[#3E4B37]/30 flex justify-between items-center bg-[#0D110C]">
+              <h3 className="text-[#F5F7F2] font-bold uppercase tracking-wider text-sm">Vystrihnúť Banner</h3>
+              <button 
+                onClick={() => setCropModalOpen(false)}
+                className="text-[#919B82] hover:text-[#F5F7F2] transition-colors text-sm font-semibold uppercase tracking-wider"
+              >
+                Zrušiť
+              </button>
+            </div>
+            <div className="p-6 overflow-auto bg-[#090C08] flex justify-center max-h-[60vh]">
+              {cropImgSrc && (
+                <ReactCrop
+                  crop={crop}
+                  onChange={(_, percentCrop) => setCrop(percentCrop)}
+                  onComplete={(c) => setCompletedCrop(c)}
+                  aspect={fullWindowBackground ? 540 / 460 : 540 / 140}
+                  className="max-h-full"
+                >
+                  <img ref={imgRef} src={cropImgSrc} alt="Crop" onLoad={onImageLoad} className="max-w-full max-h-[50vh] object-contain" />
+                </ReactCrop>
+              )}
+            </div>
+            <div className="p-4 border-t border-[#3E4B37]/30 bg-[#0D110C] flex justify-end">
+              <button
+                onClick={handleSaveCrop}
+                className="bg-[#3E4B37] text-[#F5F7F2] px-6 py-2 rounded-[6px] font-bold text-sm uppercase tracking-widest hover:bg-[#4d5c44] transition-colors cursor-pointer"
+              >
+                Použiť výrez
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+

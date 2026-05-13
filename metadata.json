@@ -1,0 +1,6 @@
+{
+  "name": "Aegis Patcher Generator",
+  "description": "Generator inštalačných skriptov s grafickým rozhraním v PowerShell, zabalených do ZIP archívu.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
