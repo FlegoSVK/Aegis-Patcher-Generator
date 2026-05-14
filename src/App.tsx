@@ -31,9 +31,11 @@ export interface GameSettings {
   id: string;
   gameName: string;
   author: string;
+  authorLink?: string;
   gameVersion: string;
   translationVersion: string;
   translationLink: string;
+  supportText?: string;
   validationPath: string;
   installRelativePath: string;
   fullWindowBackground: boolean;
@@ -44,11 +46,13 @@ export interface GameSettings {
 export default function App() {
   const [gameName, setGameName] = useState('Nová Hra');
   const [author, setAuthor] = useState('Flego');
+  const [authorLink, setAuthorLink] = useState('https://komunitni-preklady.org/tym/flego');
   const [validationPath, setValidationPath] = useState('GameName');
   const [installRelativePath, setInstallRelativePath] = useState('');
   const [translationVersion, setTranslationVersion] = useState('v1.0.0');
   const [gameVersion, setGameVersion] = useState('1.0');
-  const [translationLink, setTranslationLink] = useState('https://lokalizacie.sk');
+  const [translationLink, setTranslationLink] = useState('https://komunitni-preklady.org/');
+  const [supportText, setSupportText] = useState('Investuj do slovenčiny v hrách');
   const [textColorMain, setTextColorMain] = useState('#F5F7F2');
   const [textColorSecondary, setTextColorSecondary] = useState('#919B82');
   const [bannerPreview, setBannerPreview] = useState<string | null>(null);
@@ -57,6 +61,10 @@ export default function App() {
   const [translationFiles, setTranslationFiles] = useState<{file: File, path: string}[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  
+  const [qrCodeFile, setQrCodeFile] = useState<File | null>(null);
+  const [qrCodePreview, setQrCodePreview] = useState<string | null>(null);
+  const [showSupportQrMockup, setShowSupportQrMockup] = useState(false);
   
   const [history, setHistory] = useState<GameSettings[]>([]);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
@@ -77,8 +85,22 @@ export default function App() {
   const [completedCrop, setCompletedCrop] = useState<PixelCrop>();
 
   const bannerInputRef = useRef<HTMLInputElement>(null);
+  const qrInputRef = useRef<HTMLInputElement>(null);
   const filesInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
+
+  const handleQrChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setQrCodePreview(event.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+      setQrCodeFile(file);
+      if (qrInputRef.current) qrInputRef.current.value = '';
+    }
+  };
 
   const handleBannerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -181,8 +203,10 @@ export default function App() {
     const eValidationPath = escapeXml(validationPath);
     const eColorMain = escapeXml(textColorMain || '#F5F7F2');
     const eColorSecondary = escapeXml(textColorSecondary || '#919B82');
+    const eSupportText = escapeXml(supportText || 'Investuj do slovenčiny v hrách');
 
     const psLink = translationLink.replace(/'/g, "''");
+    const psAuthorLink = (authorLink || '').replace(/'/g, "''");
     const psValidationPath = validationPath.replace(/'/g, "''").trim();
     const psInstallRelativePath = installRelativePath.replace(/'/g, "''").trim();
 
@@ -197,6 +221,7 @@ try {
     $ValidationPath = '${psValidationPath}'
     $InstallRelativePath = '${psInstallRelativePath}'
     $AppTranslationLink = '${psLink}'
+    $AppAuthorLink = '${psAuthorLink}'
 
     $XAML = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -238,9 +263,13 @@ try {
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0">
                     <TextBlock Text="Inštalácia Prekladu: ${eName}" FontSize="18" FontWeight="Light" Foreground="${eColorMain}" Margin="0,0,0,4" TextWrapping="Wrap"/>
-                    <TextBlock Text="Autor: ${eAuthor}" FontSize="12" Foreground="${eColorSecondary}" Margin="0,0,0,2"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,2">
+                        <TextBlock Text="Autor: " FontSize="12" Foreground="${eColorSecondary}"/>
+                        <TextBlock Name="AuthorLink" Text="${eAuthor}" FontSize="12" Foreground="${eColorMain}" TextDecorations="Underline" Cursor="Hand"/>
+                    </StackPanel>
                     <TextBlock Text="Pre verziu hry: ${eGameVersion}" FontSize="12" Foreground="${eColorSecondary}" Margin="0,0,0,4"/>
                     <TextBlock Name="WebLink" Text="Stránka prekladu" TextDecorations="Underline" Foreground="${eColorMain}" FontSize="12" Cursor="Hand"/>
+                    <TextBlock Name="SupportLink" Text="${eSupportText}" TextDecorations="Underline" Foreground="${eColorMain}" FontSize="11" Margin="0,4,0,0" Cursor="Hand"/>
                 </StackPanel>
                 <Border Grid.Column="1" Background="#4C3E4B37" BorderBrush="#3E4B37" BorderThickness="1" CornerRadius="4" Padding="8,4" VerticalAlignment="Top">
                     <TextBlock Text="${eTranVersion}" FontSize="10" Foreground="${eColorMain}"/>
@@ -271,6 +300,14 @@ try {
                 <Button Name="InstallButton" Content="Inštalovať Preklad" Width="140" Height="32" Background="#3E4B37" Foreground="${eColorMain}" BorderThickness="0" FontSize="12" FontWeight="Bold" Cursor="Hand"/>
             </StackPanel>
         </StackPanel>
+
+        <Grid Name="QrOverlay" Visibility="Collapsed" Background="#919B82" Grid.Row="0" Grid.RowSpan="2">
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                <Image Name="QrImage" Width="240" Height="240" Stretch="Uniform" Margin="0,0,0,20"/>
+                <Button Name="CloseQrButton" Content="Zavrieť" Width="120" Height="36" Background="#3E4B37" Foreground="#F5F7F2" BorderThickness="0" FontSize="13" FontWeight="Bold" Cursor="Hand" HorizontalAlignment="Center"/>
+            </StackPanel>
+        </Grid>
+
         </Grid>
     </Border>
 </Window>
@@ -305,6 +342,63 @@ try {
     $InstallProgress = $Form.FindName("InstallProgress")
     $ProgressPercent = $Form.FindName("ProgressPercent")
     $WebLink = $Form.FindName("WebLink")
+    $AuthorLink = $Form.FindName("AuthorLink")
+    $SupportLink = $Form.FindName("SupportLink")
+    $QrOverlay = $Form.FindName("QrOverlay")
+    $QrImage = $Form.FindName("QrImage")
+    $CloseQrButton = $Form.FindName("CloseQrButton")
+
+    $qrPath = Join-Path $PSScriptRoot "Assets\\qrcode.jpg"
+    if ($QrImage -and (Test-Path $qrPath)) {
+        try {
+            $uri = New-Object System.Uri($qrPath)
+            $QrImage.Source = New-Object System.Windows.Media.Imaging.BitmapImage -ArgumentList $uri
+        } catch { }
+    } else {
+        if ($SupportLink) { $SupportLink.Visibility = "Collapsed" }
+    }
+
+    if ($SupportLink) {
+        $SupportLink.Add_MouseLeftButtonDown({
+            param($sender, $e)
+            if ($QrOverlay) {
+                $QrOverlay.Visibility = "Visible"
+            }
+        })
+        $SupportLink.Add_MouseEnter({
+            $SupportLink.Foreground = "${eColorSecondary}"
+        })
+        $SupportLink.Add_MouseLeave({
+            $SupportLink.Foreground = "${eColorMain}"
+        })
+    }
+    
+    if ($CloseQrButton) {
+        $CloseQrButton.Add_Click({
+            if ($QrOverlay) {
+                $QrOverlay.Visibility = "Collapsed"
+            }
+        })
+    }
+
+    if ($AuthorLink -and !([string]::IsNullOrWhiteSpace($AppAuthorLink))) {
+        $AuthorLink.Add_MouseLeftButtonDown({
+            param($sender, $e)
+            try { 
+                Start-Process $AppAuthorLink 
+                $e.Handled = $true
+            } catch { }
+        })
+        $AuthorLink.Add_MouseEnter({
+            $AuthorLink.Foreground = "${eColorSecondary}"
+        })
+        $AuthorLink.Add_MouseLeave({
+            $AuthorLink.Foreground = "${eColorMain}"
+        })
+    } elseif ($AuthorLink) {
+        $AuthorLink.Cursor = "Arrow"
+        $AuthorLink.TextDecorations = $null
+    }
     
     if ($WebLink -and !([string]::IsNullOrWhiteSpace($AppTranslationLink))) {
         $WebLink.Add_MouseLeftButtonDown({
@@ -437,9 +531,11 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
       id: Date.now().toString(),
       gameName,
       author,
+      authorLink,
       gameVersion,
       translationVersion,
       translationLink,
+      supportText,
       validationPath,
       installRelativePath,
       fullWindowBackground,
@@ -477,6 +573,11 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
         assetsFolder.file("banner.jpg", bannerFile);
       }
 
+      // Add QR code
+      if (qrCodeFile && assetsFolder) {
+        assetsFolder.file("qrcode.jpg", qrCodeFile);
+      }
+
       // Add translation files
       if (translationFiles.length > 0 && assetsFolder) {
         for (const item of translationFiles) {
@@ -505,7 +606,7 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
   };
 
   return (
-    <div className="min-h-screen bg-[#0D110C] text-[#F5F7F2] font-sans flex flex-col overflow-hidden">
+    <div className="h-[100dvh] bg-[#0D110C] text-[#F5F7F2] font-sans flex flex-col overflow-hidden">
       
       {showHistoryModal && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
@@ -531,9 +632,11 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                       onClick={() => {
                         setGameName(item.gameName);
                         setAuthor(item.author);
+                        setAuthorLink(item.authorLink || 'https://komunitni-preklady.org/tym/flego');
                         setGameVersion(item.gameVersion);
                         setTranslationVersion(item.translationVersion);
                         setTranslationLink(item.translationLink);
+                        setSupportText(item.supportText || 'Investuj do slovenčiny v hrách');
                         setValidationPath(item.validationPath);
                         setInstallRelativePath(item.installRelativePath || '');
                         setFullWindowBackground(item.fullWindowBackground || false);
@@ -571,7 +674,7 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
         </div>
       )}
 
-      <header className="h-16 border-b border-[#3E4B37]/30 flex items-center justify-between px-4 md:px-8 bg-[#0D110C] z-10">
+      <header className="h-12 lg:h-14 border-b border-[#3E4B37]/30 flex items-center justify-between px-4 md:px-8 bg-[#0D110C] z-10 shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-[#3E4B37] rounded flex items-center justify-center font-bold text-sm">A</div>
           <h1 className="text-lg font-bold tracking-tight uppercase hidden md:block">Aegis <span className="text-[#919B82]">Patcher Generator</span></h1>
@@ -589,100 +692,123 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
         </div>
       </header>
 
-      <main className="flex-1 grid grid-cols-1 lg:grid-cols-[400px_1fr] overflow-hidden">
+      <main className="flex-1 overflow-y-auto lg:overflow-hidden flex flex-col lg:grid lg:grid-cols-[380px_1fr] xl:grid-cols-[400px_1fr]">
         
         {/* LEFT: Controls Panel */}
-        <aside className="border-r border-[#3E4B37]/20 flex flex-col bg-[#0D110C] z-10 overflow-hidden">
-          <div className="flex-1 overflow-y-auto p-6 md:p-8 flex flex-col gap-6 custom-scrollbar">
+        <aside className="border-b lg:border-b-0 lg:border-r border-[#3E4B37]/20 flex flex-col bg-[#0D110C] z-10 lg:overflow-hidden min-h-[600px] lg:min-h-0">
+          <div className="flex-1 overflow-y-auto px-5 py-4 lg:px-6 lg:py-5 flex flex-col gap-5 custom-scrollbar">
             <section>
-            <h2 className="text-xs font-bold text-[#919B82] uppercase mb-4 tracking-wider">Základné Informácie</h2>
-            <div className="space-y-4">
+            <h2 className="text-[11px] font-bold text-[#919B82] uppercase mb-3 tracking-wider">Základné Informácie</h2>
+            <div className="space-y-3">
               <div className="space-y-1">
-                <label className="block text-[10px] uppercase text-[#919B82] ml-1">Názov Hry</label>
+                <label className="block text-[9px] uppercase text-[#919B82] ml-1">Názov Hry</label>
                 <input 
                   type="text" 
                   value={gameName}
                   onChange={(e) => setGameName(e.target.value)}
-                  className="w-full bg-[#131A11] border border-[#3E4B37] text-[#F5F7F2] rounded-[6px] p-[10px] text-[13px] focus:outline-none focus:border-[#919B82] transition-colors"
+                  className="w-full bg-[#131A11] border border-[#3E4B37] text-[#F5F7F2] rounded-[4px] px-2 py-1.5 text-xs focus:outline-none focus:border-[#919B82] transition-colors"
                 />
               </div>
               
-              <div className="space-y-1">
-                <label className="block text-[10px] uppercase text-[#919B82] ml-1">Autor Prekladu</label>
-                <input 
-                  type="text" 
-                  value={author}
-                  onChange={(e) => setAuthor(e.target.value)}
-                  className="w-full bg-[#131A11] border border-[#3E4B37] text-[#F5F7F2] rounded-[6px] p-[10px] text-[13px] focus:outline-none focus:border-[#919B82] transition-colors"
-                />
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="block text-[10px] uppercase text-[#919B82] ml-1">Verzia prekladu</label>
+                  <label className="block text-[9px] uppercase text-[#919B82] ml-1">Autor Prekladu</label>
+                  <input 
+                    type="text" 
+                    value={author}
+                    onChange={(e) => setAuthor(e.target.value)}
+                    className="w-full bg-[#131A11] border border-[#3E4B37] text-[#F5F7F2] rounded-[4px] px-2 py-1.5 text-xs focus:outline-none focus:border-[#919B82] transition-colors"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-[9px] uppercase text-[#919B82] ml-1">Link autora</label>
+                  <input 
+                    type="text" 
+                    value={authorLink}
+                    onChange={(e) => setAuthorLink(e.target.value)}
+                    className="w-full bg-[#131A11] border border-[#3E4B37] text-[#F5F7F2] rounded-[4px] px-2 py-1.5 text-xs focus:outline-none focus:border-[#919B82] transition-colors"
+                  />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="block text-[9px] uppercase text-[#919B82] ml-1">Verzia prekladu</label>
                   <input 
                     type="text" 
                     value={translationVersion}
                     onChange={(e) => setTranslationVersion(e.target.value)}
-                    className="w-full bg-[#131A11] border border-[#3E4B37] text-[#F5F7F2] rounded-[6px] p-[10px] text-[13px] focus:outline-none focus:border-[#919B82] transition-colors"
+                    className="w-full bg-[#131A11] border border-[#3E4B37] text-[#F5F7F2] rounded-[4px] px-2 py-1.5 text-xs focus:outline-none focus:border-[#919B82] transition-colors"
                   />
                 </div>
                 
                 <div className="space-y-1">
-                  <label className="block text-[10px] uppercase text-[#919B82] ml-1">Na verziu hry</label>
+                  <label className="block text-[9px] uppercase text-[#919B82] ml-1">Na verziu hry</label>
                   <input 
                     type="text" 
                     value={gameVersion}
                     onChange={(e) => setGameVersion(e.target.value)}
-                    className="w-full bg-[#131A11] border border-[#3E4B37] text-[#F5F7F2] rounded-[6px] p-[10px] text-[13px] focus:outline-none focus:border-[#919B82] transition-colors"
+                    className="w-full bg-[#131A11] border border-[#3E4B37] text-[#F5F7F2] rounded-[4px] px-2 py-1.5 text-xs focus:outline-none focus:border-[#919B82] transition-colors"
                   />
                 </div>
               </div>
 
               <div className="space-y-1">
-                <label className="block text-[10px] uppercase text-[#919B82] ml-1">Link na stránku prekladu</label>
+                <label className="block text-[9px] uppercase text-[#919B82] ml-1">Link na stránku prekladu</label>
                 <input 
                   type="text" 
                   value={translationLink}
                   onChange={(e) => setTranslationLink(e.target.value)}
-                  className="w-full bg-[#131A11] border border-[#3E4B37] text-[#F5F7F2] rounded-[6px] p-[10px] text-[13px] focus:outline-none focus:border-[#919B82] transition-colors"
+                  className="w-full bg-[#131A11] border border-[#3E4B37] text-[#F5F7F2] rounded-[4px] px-2 py-1.5 text-xs focus:outline-none focus:border-[#919B82] transition-colors"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="block text-[9px] uppercase text-[#919B82] ml-1">Text podpory (nepovinné)</label>
+                <input 
+                  type="text" 
+                  value={supportText}
+                  onChange={(e) => setSupportText(e.target.value)}
+                  placeholder="Investuj do slovenčiny v hrách"
+                  className="w-full bg-[#131A11] border border-[#3E4B37] text-[#F5F7F2] rounded-[4px] px-2 py-1.5 text-xs focus:outline-none focus:border-[#919B82] transition-colors"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="block text-[10px] uppercase text-[#919B82] ml-1">Farba Textu (Hlavná)</label>
-                  <div className="flex bg-[#131A11] border border-[#3E4B37] rounded-[6px] p-1 gap-2 items-center">
+                  <label className="block text-[9px] uppercase text-[#919B82] ml-1">Farba Textu (Hlavná)</label>
+                  <div className="flex bg-[#131A11] border border-[#3E4B37] rounded-[4px] p-1 gap-2 items-center">
                     <input
                       type="color"
                       value={textColorMain}
                       onChange={(e) => setTextColorMain(e.target.value)}
-                      className="w-8 h-8 rounded shrink-0 bg-transparent cursor-pointer border-none p-0"
+                      className="w-6 h-6 rounded shrink-0 bg-transparent cursor-pointer border-none p-0"
                     />
                     <input
                       type="text"
                       value={textColorMain}
                       onChange={(e) => setTextColorMain(e.target.value.toUpperCase())}
-                      className="w-full bg-transparent text-[#F5F7F2] text-[13px] focus:outline-none uppercase font-mono"
+                      className="w-full bg-transparent text-[#F5F7F2] text-xs focus:outline-none uppercase font-mono"
                       maxLength={7}
                     />
                   </div>
                 </div>
 
                 <div className="space-y-1">
-                  <label className="block text-[10px] uppercase text-[#919B82] ml-1">Farba Textu (Sekundárna)</label>
-                  <div className="flex bg-[#131A11] border border-[#3E4B37] rounded-[6px] p-1 gap-2 items-center">
+                  <label className="block text-[9px] uppercase text-[#919B82] ml-1">Farba Textu (Sekundárna)</label>
+                  <div className="flex bg-[#131A11] border border-[#3E4B37] rounded-[4px] p-1 gap-2 items-center">
                     <input
                       type="color"
                       value={textColorSecondary}
                       onChange={(e) => setTextColorSecondary(e.target.value)}
-                      className="w-8 h-8 rounded shrink-0 bg-transparent cursor-pointer border-none p-0"
+                      className="w-6 h-6 rounded shrink-0 bg-transparent cursor-pointer border-none p-0"
                     />
                     <input
                       type="text"
                       value={textColorSecondary}
                       onChange={(e) => setTextColorSecondary(e.target.value.toUpperCase())}
-                      className="w-full bg-transparent text-[#F5F7F2] text-[13px] focus:outline-none uppercase font-mono"
+                      className="w-full bg-transparent text-[#F5F7F2] text-xs focus:outline-none uppercase font-mono"
                       maxLength={7}
                     />
                   </div>
@@ -690,32 +816,32 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
               </div>
 
               <div className="space-y-1">
-                <label className="block text-[10px] uppercase text-[#919B82] ml-1">Overovacia Cesta (napr. názov zložky hry)</label>
+                <label className="block text-[9px] uppercase text-[#919B82] ml-1">Overovacia Cesta (napr. názov zložky hry)</label>
                 <input 
                   type="text" 
                   value={validationPath}
                   onChange={(e) => setValidationPath(e.target.value)}
                   placeholder="napr. Crimson Desert"
-                  className="w-full bg-[#131A11] border border-[#3E4B37] text-[#F5F7F2] rounded-[6px] p-[10px] text-[13px] focus:outline-none focus:border-[#919B82] transition-colors font-mono"
+                  className="w-full bg-[#131A11] border border-[#3E4B37] text-[#F5F7F2] rounded-[4px] px-2 py-1.5 text-xs focus:outline-none focus:border-[#919B82] transition-colors font-mono"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="block text-[10px] uppercase text-[#919B82] ml-1">Cesta na uloženie prekladu (nepovinné)</label>
+                <label className="block text-[9px] uppercase text-[#919B82] ml-1">Cesta na uloženie prekladu (nepovinné)</label>
                 <input 
                   type="text" 
                   value={installRelativePath}
                   onChange={(e) => setInstallRelativePath(e.target.value)}
                   placeholder="napr. TheEpicProject\Content\Paks (nechajte prázdne pre koreň hry)"
-                  className="w-full bg-[#131A11] border border-[#3E4B37] text-[#F5F7F2] rounded-[6px] p-[10px] text-[13px] focus:outline-none focus:border-[#919B82] transition-colors font-mono"
+                  className="w-full bg-[#131A11] border border-[#3E4B37] text-[#F5F7F2] rounded-[4px] px-2 py-1.5 text-xs focus:outline-none focus:border-[#919B82] transition-colors font-mono"
                 />
               </div>
             </div>
           </section>
 
           <section>
-            <h2 className="text-xs font-bold text-[#919B82] uppercase mb-4 tracking-wider">Multimédiá a Súbory</h2>
-            <div className="flex flex-col gap-2 mb-4">
+            <h2 className="text-[11px] font-bold text-[#919B82] uppercase mb-3 tracking-wider">Multimédiá a Súbory</h2>
+            <div className="flex flex-col gap-1.5 mb-3">
               <div className="flex gap-2">
                 <input 
                   type="file" 
@@ -724,30 +850,43 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                   ref={bannerInputRef} 
                   onChange={handleBannerChange}
                 />
+                <input 
+                  type="file" 
+                  accept="image/png, image/jpeg" 
+                  className="hidden" 
+                  ref={qrInputRef} 
+                  onChange={handleQrChange}
+                />
                 <button 
                   onClick={() => bannerInputRef.current?.click()}
-                  className="flex-1 bg-transparent border border-[#3E4B37] text-[#919B82] rounded-[6px] py-2 text-xs font-semibold cursor-pointer hover:bg-[#3E4B37]/20 transition-colors truncate px-2"
+                  className="flex-1 bg-transparent border border-[#3E4B37] text-[#919B82] rounded-[4px] py-1.5 text-[11px] font-semibold cursor-pointer hover:bg-[#3E4B37]/20 transition-colors truncate px-2"
                 >
-                  + Obrázok
+                  + Banner
+                </button>
+                <button 
+                  onClick={() => qrInputRef.current?.click()}
+                  className="flex-1 bg-transparent border border-[#3E4B37] text-[#919B82] rounded-[4px] py-1.5 text-[11px] font-semibold cursor-pointer hover:bg-[#3E4B37]/20 transition-colors truncate px-2"
+                >
+                  + QR Kód
                 </button>
               </div>
 
-              <label className="flex items-center gap-2 cursor-pointer mt-1 pl-1 group">
+              <label className="flex items-center gap-2 cursor-pointer mt-0.5 pl-1 group">
                 <div className="relative flex items-center justify-center">
                   <input 
                     type="checkbox" 
                     checked={fullWindowBackground}
                     onChange={(e) => setFullWindowBackground(e.target.checked)}
-                    className="peer appearance-none w-4 h-4 rounded-sm border border-[#3E4B37] bg-[#131A11] checked:bg-[#3E4B37] transition-colors cursor-pointer"
+                    className="peer appearance-none w-3.5 h-3.5 rounded-sm border border-[#3E4B37] bg-[#131A11] checked:bg-[#3E4B37] transition-colors cursor-pointer"
                   />
-                  <svg className="absolute w-3 h-3 text-[#F5F7F2] opacity-0 peer-checked:opacity-100 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                  <svg className="absolute w-2.5 h-2.5 text-[#F5F7F2] opacity-0 peer-checked:opacity-100 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="20 6 9 17 4 12"></polyline>
                   </svg>
                 </div>
-                <span className="text-[11px] lg:text-xs text-[#919B82] group-hover:text-[#F5F7F2] transition-colors">Obrázok na celé okno inštalátora</span>
+                <span className="text-[10px] lg:text-[11px] text-[#919B82] group-hover:text-[#F5F7F2] transition-colors">Obrázok na celé okno inštalátora</span>
               </label>
             </div>
-            <div className="flex gap-2 mb-4">
+            <div className="flex gap-2 mb-3">
               <input 
                 type="file" 
                 multiple
@@ -763,16 +902,16 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                 ref={folderInputRef} 
                 onChange={handleFolderChange}
               />
-              <div className="flex flex-col sm:flex-row gap-2">
+              <div className="flex flex-col sm:flex-row gap-2 w-full">
                 <button 
                   onClick={() => filesInputRef.current?.click()}
-                  className="flex-1 bg-transparent border border-[#3E4B37] text-[#919B82] rounded-[6px] py-2 text-[11px] lg:text-xs font-semibold cursor-pointer hover:bg-[#3E4B37]/20 transition-colors truncate px-2"
+                  className="flex-1 bg-transparent border border-[#3E4B37] text-[#919B82] rounded-[4px] py-1.5 text-[10px] lg:text-[11px] font-semibold cursor-pointer hover:bg-[#3E4B37]/20 transition-colors truncate px-2"
                 >
                   + Súbory
                 </button>
                 <button 
                   onClick={() => folderInputRef.current?.click()}
-                  className="flex-1 bg-transparent border border-[#3E4B37] text-[#919B82] rounded-[6px] py-2 text-[11px] lg:text-xs font-semibold cursor-pointer hover:bg-[#3E4B37]/20 transition-colors truncate px-2"
+                  className="flex-1 bg-transparent border border-[#3E4B37] text-[#919B82] rounded-[4px] py-1.5 text-[10px] lg:text-[11px] font-semibold cursor-pointer hover:bg-[#3E4B37]/20 transition-colors truncate px-2"
                 >
                   + Priečinok
                 </button>
@@ -792,6 +931,20 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                   <button 
                     onClick={() => { setBannerPreview(null); setBannerFile(null); }}
                     className="px-4 py-2 bg-red-900/80 hover:bg-red-800 text-white text-xs font-bold uppercase tracking-wider rounded transition-colors"
+                  >
+                    Odstrániť
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {qrCodePreview && (
+              <div className="mb-4 aspect-square w-24 h-24 mx-auto rounded-md overflow-hidden bg-black/50 border border-[#3E4B37] relative group">
+                <img src={qrCodePreview} alt="QR Code Preview" className="w-full h-full object-contain" />
+                <div className="absolute inset-0 bg-black/70 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button 
+                    onClick={() => { setQrCodePreview(null); setQrCodeFile(null); }}
+                    className="px-2 py-1 bg-red-900/80 hover:bg-red-800 text-white text-[10px] font-bold uppercase tracking-wider rounded transition-colors"
                   >
                     Odstrániť
                   </button>
@@ -823,11 +976,11 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
           </section>
           </div>
 
-          <div className="p-4 md:p-6 border-t border-[#3E4B37]/20 shrink-0 bg-[#0D110C]">
+          <div className="p-4 md:px-5 md:py-4 border-t border-[#3E4B37]/20 shrink-0 bg-[#0D110C]">
             <button
               onClick={handleGenerate}
               disabled={isGenerating}
-              className="w-full bg-[#3E4B37] text-[#F5F7F2] rounded-[6px] py-2.5 font-bold text-sm uppercase tracking-widest shadow-lg shadow-[#1A2416] border-none cursor-pointer hover:bg-[#4d5c44] transition-all duration-200 disabled:opacity-50"
+              className="w-full bg-[#3E4B37] text-[#F5F7F2] rounded-[4px] py-2 lg:py-2.5 font-bold text-sm uppercase tracking-widest shadow-lg shadow-[#1A2416] border-none cursor-pointer hover:bg-[#4d5c44] transition-all duration-200 disabled:opacity-50"
             >
               {isGenerating ? 'Generujem Balík...' : 'Vygenerovať ZIP Balík'}
             </button>
@@ -835,7 +988,7 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
         </aside>
         
         {/* RIGHT: Mockup Preview */}
-        <section className="bg-[#090C08] relative flex items-center justify-center p-4 lg:p-12 overflow-hidden flex-1 border-t lg:border-t-0 border-[#3E4B37]/20 z-0">
+        <section className="bg-[#090C08] relative flex items-center justify-center p-4 lg:p-12 overflow-hidden flex-1 z-0 min-h-[600px] lg:min-h-0">
           <div className="absolute top-8 left-10 text-[10px] uppercase tracking-widest text-[#3E4B37] font-bold hidden md:block">
             Live Preview &bull; WPF Patcher Mockup
           </div>
@@ -843,50 +996,71 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
           <div className="w-full lg:w-[540px] h-auto lg:h-[460px] bg-[#111] rounded-[12px] overflow-hidden shadow-[0_25px_50px_-12px_rgba(0,0,0,0.7)] border border-[#333] flex flex-col scale-90 sm:scale-100 transition-transform origin-center relative">
             
             {/* Full Window Background */}
-            {fullWindowBackground && bannerPreview && (
+            {fullWindowBackground && (
               <div className="absolute inset-0 z-0">
-                <img src={bannerPreview} alt="Full Banner" className="w-full h-full object-cover" />
+                {bannerPreview ? (
+                  <img src={bannerPreview} alt="Full Banner" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-[#1A2416] to-[#3E4B37]"></div>
+                )}
               </div>
             )}
             
             {/* Top Gradient Overlay */}
-            <div className={`absolute top-0 left-0 right-0 ${fullWindowBackground ? 'bottom-0' : 'h-[140px]'} z-10 pointer-events-none ${fullWindowBackground ? 'bg-gradient-to-b from-[#111111]/0 to-[#111111]/90' : 'bg-gradient-to-b from-[#111111]/0 to-[#111111]'}`}></div>
+            {fullWindowBackground ? (
+              <div className="absolute inset-0 z-10 pointer-events-none bg-gradient-to-b from-[#111111]/0 via-[#111111]/[0.93] via-[60%] to-[#111111]/[0.93]"></div>
+            ) : (
+              <div className="absolute top-0 left-0 right-0 h-[120px] lg:h-[140px] z-10 pointer-events-none bg-gradient-to-b from-[#111111]/0 to-[#111111]"></div>
+            )}
 
-            <button className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center bg-black/30 hover:bg-black/50 text-[#F5F7F2] border-none rounded-sm z-30 transition-colors font-bold text-sm cursor-default">
+            <button className="absolute top-3 right-3 w-[30px] h-[30px] flex items-center justify-center bg-black/25 hover:bg-black/50 border-none rounded-sm z-30 transition-colors font-bold text-sm cursor-default" style={{ color: textColorMain }}>
               ✕
             </button>
             
             {/* Banner Content (only if not full window) */}
-            {!fullWindowBackground && (
-              <div className="h-[120px] lg:h-[140px] bg-gradient-to-br from-[#1A2416] to-[#3E4B37] flex items-center justify-center relative overflow-hidden z-0">
-                <div className="text-center w-full h-full">
+            <div className="h-[120px] lg:h-[140px] w-full shrink-0 relative z-20">
+              {!fullWindowBackground && (
+                <div className="w-full h-full bg-gradient-to-br from-[#1A2416] to-[#3E4B37] flex items-center justify-center overflow-hidden">
                   {bannerPreview ? (
                     <img src={bannerPreview} alt="Banner" className="w-full h-full object-cover" />
                   ) : (
-                    <div className="flex flex-col items-center justify-center h-full relative z-10 w-full px-4">
+                    <div className="flex flex-col items-center justify-center h-full relative z-10 w-full px-4 text-center">
                       <h3 className="text-xl lg:text-2xl font-serif italic text-[#F5F7F2] truncate w-full">{gameName || 'Nová Hra'}</h3>
-                      <p className="text-[8px] lg:text-[10px] uppercase tracking-[0.3em] opacity-80 mt-1 lg:mt-2">Slovenský Preklad</p>
+                      <p className="text-[8px] lg:text-[10px] uppercase tracking-[0.3em] opacity-80 mt-1 lg:mt-2 text-[#F5F7F2]">Slovenský Preklad</p>
                     </div>
                   )}
                 </div>
-              </div>
-            )}
-            
-            {/* Default Banner (if fullWindow active but no image) */}
-            {fullWindowBackground && !bannerPreview && (
-              <div className="absolute inset-0 z-0 bg-gradient-to-br from-[#1A2416] to-[#3E4B37]"></div>
-            )}
+              )}
+            </div>
             
             {/* Content */}
-            <div className={`flex-1 p-6 lg:p-8 flex flex-col z-20 ${fullWindowBackground && 'bg-transparent'}`}>
+            <div className="flex-1 px-6 py-5 lg:px-[30px] lg:py-[20px] flex flex-col z-20 relative bg-transparent">
               <div className="flex justify-between items-start mb-6">
                 <div className="space-y-1 overflow-hidden pr-2">
                   <h4 className="text-base lg:text-lg font-light truncate w-full" style={{ color: textColorMain }}>Inštalácia Prekladu: {gameName || 'Nová Hra'}</h4>
-                  <p className="text-[11px] lg:text-xs truncate w-full" style={{ color: textColorSecondary }}>Autor: {author || 'Flego'}</p>
+                  <p className="text-[11px] lg:text-xs truncate w-full flex gap-1" style={{ color: textColorSecondary }}>
+                    <span>Autor:</span>
+                    {authorLink ? (
+                      <a href={authorLink} target="_blank" rel="noopener noreferrer" className="underline hover:opacity-80 truncate" style={{ color: textColorMain }}>
+                        {author || 'Flego'}
+                      </a>
+                    ) : (
+                      <span className="truncate" style={{ color: textColorMain }}>{author || 'Flego'}</span>
+                    )}
+                  </p>
                   <p className="text-[11px] lg:text-xs truncate w-full" style={{ color: textColorSecondary }}>Pre verziu hry: {gameVersion}</p>
                   <a href={translationLink} target="_blank" rel="noopener noreferrer" className="text-[11px] lg:text-xs underline inline-block mt-1 truncate max-w-full" style={{ color: textColorMain }}>
                     Stránka prekladu
                   </a>
+                  {supportText && qrCodePreview && (
+                    <button 
+                      onClick={() => setShowSupportQrMockup(true)}
+                      className="text-[10px] lg:text-[11px] underline block mt-1 text-left truncate max-w-full hover:opacity-80 transition-opacity" 
+                      style={{ color: textColorMain }}
+                    >
+                      {supportText}
+                    </button>
+                  )}
                 </div>
                 <div className="text-right shrink-0">
                   <span className="text-[9px] lg:text-[10px] bg-[#3E4B37]/30 px-2 py-1 rounded border border-[#3E4B37]" style={{ color: textColorMain }}>{translationVersion || 'v1.0.0'}</span>
@@ -928,6 +1102,27 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                 </div>
               </div>
             </div>
+
+            {/* QR Overlay Mockup */}
+            {showSupportQrMockup && (
+              <div className="absolute inset-0 z-50 flex items-center justify-center bg-[#919B82]">
+                <div className="flex flex-col items-center gap-5">
+                  <div className="w-48 h-48 lg:w-[240px] lg:h-[240px] flex items-center justify-center bg-black/10 rounded-lg">
+                    {qrCodePreview ? (
+                      <img src={qrCodePreview} alt="QR Code" className="w-full h-full object-contain" />
+                    ) : (
+                      <span className="text-[#3E4B37] font-bold text-xs uppercase tracking-widest text-center">Vyžaduje sa<br/>QR Kód</span>
+                    )}
+                  </div>
+                  <button 
+                    onClick={() => setShowSupportQrMockup(false)}
+                    className="w-[120px] h-9 bg-[#3E4B37] text-[#F5F7F2] font-bold text-[13px] border-none cursor-pointer hover:bg-[#4d5c44] transition-colors"
+                  >
+                    Zavrieť
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
           
           <div className="absolute bottom-8 right-10 text-[9px] text-[#3E4B37] max-w-[200px] text-right uppercase hidden md:block">
