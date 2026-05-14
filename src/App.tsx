@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
+import { FileList } from './components/FileList';
 import { 
   Package, 
   Image as ImageIcon, 
@@ -63,9 +64,15 @@ export default function App() {
   const [translationFiles, setTranslationFiles] = useState<{file: File, path: string}[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+
+  const handleRemoveFile = (index: number) => {
+    setTranslationFiles(prev => prev.filter((_, i) => i !== index));
+  };
   
   const [qrCodeFile, setQrCodeFile] = useState<File | null>(null);
   const [qrCodePreview, setQrCodePreview] = useState<string | null>(null);
+  const [qrLoadError, setQrLoadError] = useState(false);
+  const [bannerLoadError, setBannerLoadError] = useState(false);
   const [showSupportQrMockup, setShowSupportQrMockup] = useState(false);
   const [showChangelogMockup, setShowChangelogMockup] = useState(false);
   
@@ -98,6 +105,7 @@ export default function App() {
       const reader = new FileReader();
       reader.onload = (event) => {
         setQrCodePreview(event.target?.result as string);
+        setQrLoadError(false);
       };
       reader.readAsDataURL(file);
       setQrCodeFile(file);
@@ -167,6 +175,7 @@ export default function App() {
           if (blob) {
             const previewUrl = URL.createObjectURL(blob);
             setBannerPreview(previewUrl);
+            setBannerLoadError(false);
             const file = new File([blob], 'banner.jpg', { type: 'image/jpeg' });
             setBannerFile(file);
             setCropModalOpen(false);
@@ -501,6 +510,8 @@ try {
             if ($selectedPath -match ([regex]::Escape($ValidationPathClean) + "$")) {
                 $isValid = $true
             } elseif ($selectedBaseName -eq $validationBaseName -or $selectedBaseName -eq $ValidationPathClean) {
+                $isValid = $true
+            } elseif (Test-Path (Join-Path $selectedPath $ValidationPathClean)) {
                 $isValid = $true
             } else {
                 $isValid = $false
@@ -915,7 +926,7 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                   type="text" 
                   value={installRelativePath}
                   onChange={(e) => setInstallRelativePath(e.target.value)}
-                  placeholder="napr. TheEpicProject\Content\Paks (nechajte prázdne pre koreň hry)"
+                  placeholder="napr. Game\Content\Paks (nechajte prázdne pre koreň hry)"
                   className="w-full bg-[#131A11] border border-[#3E4B37] text-[#F5F7F2] rounded-[4px] px-2 py-1.5 text-xs focus:outline-none focus:border-[#919B82] transition-colors font-mono"
                 />
               </div>
@@ -1003,7 +1014,14 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
 
             {bannerPreview && (
               <div className="mb-4 aspect-[4/1] w-full rounded-md overflow-hidden bg-black/50 border border-[#3E4B37] relative group">
-                <img src={bannerPreview} alt="Banner Preview" className="w-full h-full object-cover opacity-80" />
+                {bannerLoadError ? (
+                  <div className="w-full h-full flex flex-col items-center justify-center bg-red-900/20 text-[#919B82] p-2 text-center">
+                    <span className="text-2xl mb-1">⚠️</span>
+                    <span className="text-[10px] uppercase tracking-wider">Chyba pri načítaní bannera</span>
+                  </div>
+                ) : (
+                  <img src={bannerPreview} alt="Banner Preview" className="w-full h-full object-cover opacity-80" onError={() => setBannerLoadError(true)} />
+                )}
                 <div className="absolute inset-0 bg-black/70 flex items-center justify-center gap-4 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button 
                     onClick={() => setCropModalOpen(true)}
@@ -1012,7 +1030,7 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                     Upraviť
                   </button>
                   <button 
-                    onClick={() => { setBannerPreview(null); setBannerFile(null); }}
+                    onClick={() => { setBannerPreview(null); setBannerFile(null); setBannerLoadError(false); }}
                     className="px-4 py-2 bg-red-900/80 hover:bg-red-800 text-white text-xs font-bold uppercase tracking-wider rounded transition-colors"
                   >
                     Odstrániť
@@ -1023,10 +1041,17 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
 
             {qrCodePreview && (
               <div className="mb-4 aspect-square w-24 h-24 mx-auto rounded-md overflow-hidden bg-black/50 border border-[#3E4B37] relative group">
-                <img src={qrCodePreview} alt="QR Code Preview" className="w-full h-full object-contain" />
+                {qrLoadError ? (
+                  <div className="w-full h-full flex flex-col items-center justify-center bg-red-900/20 text-[#919B82] p-2 text-center">
+                    <span className="text-xl mb-1">⚠️</span>
+                    <span className="text-[9px] uppercase tracking-wider leading-tight">Chyba<br/>QR</span>
+                  </div>
+                ) : (
+                  <img src={qrCodePreview} alt="QR Code Preview" className="w-full h-full object-contain" onError={() => setQrLoadError(true)} />
+                )}
                 <div className="absolute inset-0 bg-black/70 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                   <button 
-                    onClick={() => { setQrCodePreview(null); setQrCodeFile(null); }}
+                    onClick={() => { setQrCodePreview(null); setQrCodeFile(null); setQrLoadError(false); }}
                     className="px-2 py-1 bg-red-900/80 hover:bg-red-800 text-white text-[10px] font-bold uppercase tracking-wider rounded transition-colors"
                   >
                     Odstrániť
@@ -1036,25 +1061,11 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
             )}
             
             {translationFiles.length > 0 && (
-              <div className="space-y-1.5 max-h-32 overflow-y-auto custom-scrollbar">
-                {translationFiles.slice(0, 50).map((f, i) => (
-                  <div key={i} className="bg-[#3E4B37]/20 border-l-[3px] border-[#3E4B37] px-3 py-1.5 min-h-[30px] flex justify-between items-center text-[11px]">
-                    <span className="truncate mr-2 text-[#F5F7F2]" title={f.path}>{f.path}</span>
-                    <span className="opacity-50 flex-shrink-0 text-[#919B82] font-mono">{(f.file.size / (1024*1024)).toFixed(1)} MB</span>
-                  </div>
-                ))}
-                {translationFiles.length > 50 && (
-                  <div className="bg-[#3E4B37]/20 border-l-[3px] border-[#3E4B37] px-3 py-1.5 min-h-[30px] flex justify-center items-center text-[10px] text-[#919B82] italic">
-                    ... a ďalších {translationFiles.length - 50} súborov
-                  </div>
-                )}
-                <button 
-                  onClick={() => setTranslationFiles([])}
-                  className="w-full text-center text-red-500/80 hover:text-red-400 text-[10px] pt-1"
-                >
-                  Vymazať zoznam ({translationFiles.length})
-                </button>
-              </div>
+              <FileList 
+                files={translationFiles} 
+                onRemove={handleRemoveFile} 
+                onClearAll={() => setTranslationFiles([])} 
+              />
             )}
           </section>
           </div>
@@ -1081,10 +1092,12 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
             {/* Full Window Background */}
             {fullWindowBackground && (
               <div className="absolute inset-0 z-0">
-                {bannerPreview ? (
-                  <img src={bannerPreview} alt="Full Banner" className="w-full h-full object-cover" />
+                {bannerPreview && !bannerLoadError ? (
+                  <img src={bannerPreview} alt="Full Banner" className="w-full h-full object-cover" onError={() => setBannerLoadError(true)} />
                 ) : (
-                  <div className="w-full h-full bg-gradient-to-br from-[#1A2416] to-[#3E4B37]"></div>
+                  <div className="w-full h-full bg-gradient-to-br from-[#1A2416] to-[#3E4B37] flex items-center justify-center">
+                    {bannerLoadError && <span className="text-[#F5F7F2]/30 uppercase text-[10px] md:text-xs tracking-widest bg-black/20 px-3 py-1.5 md:px-4 md:py-2 rounded font-bold">⚠️ Chyba obrázka</span>}
+                  </div>
                 )}
               </div>
             )}
@@ -1096,7 +1109,7 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
               <div className="absolute top-0 left-0 right-0 h-[120px] lg:h-[140px] z-10 pointer-events-none bg-gradient-to-b from-[#111111]/0 to-[#111111]"></div>
             )}
 
-            <button className="absolute top-3 right-3 w-[30px] h-[30px] flex items-center justify-center bg-black/25 hover:bg-black/50 border-none rounded-sm z-30 transition-colors font-bold text-sm cursor-default" style={{ color: textColorMain }}>
+            <button className="absolute top-3 right-3 w-[30px] h-[30px] flex items-center justify-center bg-black/25 hover:bg-black/60 border-none rounded-sm z-30 transition-all hover:scale-105 font-bold text-sm cursor-pointer" style={{ color: textColorMain }}>
               ✕
             </button>
             
@@ -1104,10 +1117,11 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
             <div className="h-[120px] lg:h-[140px] w-full shrink-0 relative z-20">
               {!fullWindowBackground && (
                 <div className="w-full h-full bg-gradient-to-br from-[#1A2416] to-[#3E4B37] flex items-center justify-center overflow-hidden">
-                  {bannerPreview ? (
-                    <img src={bannerPreview} alt="Banner" className="w-full h-full object-cover" />
+                  {bannerPreview && !bannerLoadError ? (
+                    <img src={bannerPreview} alt="Banner" className="w-full h-full object-cover" onError={() => setBannerLoadError(true)} />
                   ) : (
                     <div className="flex flex-col items-center justify-center h-full relative z-10 w-full px-4 text-center">
+                      {bannerLoadError && <span className="text-[#F5F7F2]/30 uppercase text-[9px] tracking-widest bg-black/20 px-2 py-1 rounded mb-1 font-bold">⚠️ Chyba obrázka</span>}
                       <h3 className="text-xl lg:text-2xl font-serif italic text-[#F5F7F2] truncate w-full">{gameName || 'Nová Hra'}</h3>
                       <p className="text-[8px] lg:text-[10px] uppercase tracking-[0.3em] opacity-80 mt-1 lg:mt-2 text-[#F5F7F2]">Slovenský Preklad</p>
                     </div>
@@ -1118,7 +1132,7 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
             
             {/* Content */}
             <div className="flex-1 px-6 py-5 lg:px-[30px] lg:py-[20px] flex flex-col z-20 relative bg-transparent">
-              <div className="flex justify-between items-start mb-6">
+              <div className="flex justify-between items-start mb-3 lg:mb-4">
                 <div className="space-y-1 overflow-hidden pr-2">
                   <h4 className="text-base lg:text-lg font-light truncate w-full" style={{ color: textColorMain }}>Inštalácia Prekladu: {gameName || 'Nová Hra'}</h4>
                   <p className="text-[11px] lg:text-xs truncate w-full flex gap-1" style={{ color: textColorSecondary }}>
@@ -1132,7 +1146,7 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                     )}
                   </p>
                   <p className="text-[11px] lg:text-xs truncate w-full" style={{ color: textColorSecondary }}>Pre verziu hry: {gameVersion}</p>
-                  <a href={translationLink} target="_blank" rel="noopener noreferrer" className="text-[11px] lg:text-xs underline inline-block mt-1 truncate max-w-full" style={{ color: textColorMain }}>
+                  <a href={translationLink} target="_blank" rel="noopener noreferrer" className="text-[11px] lg:text-xs underline inline-block mt-1 truncate max-w-full hover:opacity-80 transition-opacity" style={{ color: textColorMain }}>
                     Stránka prekladu
                   </a>
                   <div className="flex flex-row items-center gap-3 mt-1 overflow-hidden w-full">
@@ -1161,7 +1175,7 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                 </div>
               </div>
               
-              <div className="my-2">
+              <div className="my-1 lg:my-2">
                 <div className="flex items-baseline gap-2 mb-1">
                   <p className="text-[11px] lg:text-xs" style={{ color: textColorSecondary }}>Cesta k hre:</p>
                   <span className="text-[10px] text-[#4A5A40] italic truncate flex-1">(Overenie: {validationPath})</span>
@@ -1170,13 +1184,13 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                   <div className="flex-1 bg-[#222] border border-[#333] px-2 h-8 text-[11px] lg:text-xs flex items-center" style={{ color: textColorMain }}>
                     
                   </div>
-                  <button className="w-[100px] h-8 bg-transparent border border-[#333] text-[11px] hover:bg-[#1a1a1a] cursor-default transition-colors shrink-0" style={{ color: textColorMain }}>
+                  <button className="w-[100px] h-8 bg-transparent border border-[#333] text-[11px] hover:bg-[#1a1a1a] cursor-pointer transition-all hover:border-[#555] hover:shadow-[0_0_8px_rgba(255,255,255,0.05)] shrink-0" style={{ color: textColorMain }}>
                     Prehľadávať...
                   </button>
                 </div>
               </div>
               
-              <div className="mt-auto space-y-[20px]">
+              <div className="mt-auto space-y-3 lg:space-y-[15px]">
                 <div className="space-y-[5px]">
                   <div className="flex justify-between text-[9px] lg:text-[10px]" style={{ color: textColorSecondary }}>
                     <span>Pripravený na inštaláciu</span>
@@ -1186,11 +1200,11 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                     <div className="h-full w-0 bg-[#3E4B37]"></div>
                   </div>
                 </div>
-                <div className="flex gap-[10px] pt-1 lg:pt-2 justify-end mb-[5px]">
-                  <button className="w-[100px] h-8 bg-transparent border border-[#333] text-[11px] lg:text-xs hover:bg-[#1a1a1a] cursor-default transition-colors" style={{ color: textColorMain }}>
+                <div className="flex gap-[10px] justify-end pb-1 lg:pb-0">
+                  <button className="w-[100px] h-8 bg-transparent border border-[#333] text-[11px] lg:text-xs hover:bg-[#1a1a1a] cursor-pointer transition-all hover:border-[#555] hover:shadow-[0_0_8px_rgba(255,255,255,0.05)]" style={{ color: textColorMain }}>
                     Zavrieť
                   </button>
-                  <button className="w-[140px] h-8 bg-[#3E4B37] text-[11px] lg:text-xs font-bold border-none cursor-default" style={{ color: textColorMain }}>
+                  <button className="w-[140px] h-8 bg-[#3E4B37] text-[11px] lg:text-xs font-bold border-none cursor-pointer hover:bg-[#4d5c44] transition-all hover:shadow-[0_0_12px_rgba(62,75,55,0.4)] hover:-translate-y-[1px]" style={{ color: textColorMain }}>
                     Inštalovať Preklad
                   </button>
                 </div>
@@ -1203,10 +1217,12 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                 <div className="bg-[#1A1A1A] border border-[#3E4B37] rounded-lg p-5 flex flex-col items-center shadow-2xl scale-[0.85] sm:scale-100 origin-center">
                   <h3 className="text-base font-bold mb-4" style={{ color: textColorMain }}>Podpora Prekladu</h3>
                   <div className="w-[180px] h-[180px] lg:w-[200px] lg:h-[200px] flex items-center justify-center bg-transparent mb-5 border border-transparent">
-                    {qrCodePreview ? (
-                      <img src={qrCodePreview} alt="QR Code" className="w-full h-full object-contain" />
+                    {qrCodePreview && !qrLoadError ? (
+                      <img src={qrCodePreview} alt="QR Code" className="w-full h-full object-contain" onError={() => setQrLoadError(true)} />
                     ) : (
-                      <span className="text-[#3E4B37] font-bold text-[10px] uppercase tracking-widest text-center">Chýba QR Kód</span>
+                      <span className="text-[#3E4B37] font-bold text-[10px] uppercase tracking-widest text-center">
+                        {qrLoadError ? "⚠️ Chyba QR Kódu" : "Chýba QR Kód"}
+                      </span>
                     )}
                   </div>
                   <button 
