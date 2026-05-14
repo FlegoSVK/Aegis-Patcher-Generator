@@ -34,6 +34,7 @@ export interface GameSettings {
   authorLink?: string;
   gameVersion: string;
   translationVersion: string;
+  changelog?: string;
   translationLink: string;
   supportText?: string;
   validationPath: string;
@@ -50,6 +51,7 @@ export default function App() {
   const [validationPath, setValidationPath] = useState('GameName');
   const [installRelativePath, setInstallRelativePath] = useState('');
   const [translationVersion, setTranslationVersion] = useState('v1.0.0');
+  const [changelog, setChangelog] = useState('');
   const [gameVersion, setGameVersion] = useState('1.0');
   const [translationLink, setTranslationLink] = useState('https://komunitni-preklady.org/');
   const [supportText, setSupportText] = useState('Investuj do slovenčiny v hrách');
@@ -65,6 +67,7 @@ export default function App() {
   const [qrCodeFile, setQrCodeFile] = useState<File | null>(null);
   const [qrCodePreview, setQrCodePreview] = useState<string | null>(null);
   const [showSupportQrMockup, setShowSupportQrMockup] = useState(false);
+  const [showChangelogMockup, setShowChangelogMockup] = useState(false);
   
   const [history, setHistory] = useState<GameSettings[]>([]);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
@@ -204,6 +207,7 @@ export default function App() {
     const eColorMain = escapeXml(textColorMain || '#F5F7F2');
     const eColorSecondary = escapeXml(textColorSecondary || '#919B82');
     const eSupportText = escapeXml(supportText || 'Investuj do slovenčiny v hrách');
+    const eChangelog = escapeXml(changelog || '');
 
     const psLink = translationLink.replace(/'/g, "''");
     const psAuthorLink = (authorLink || '').replace(/'/g, "''");
@@ -269,7 +273,10 @@ try {
                     </StackPanel>
                     <TextBlock Text="Pre verziu hry: ${eGameVersion}" FontSize="12" Foreground="${eColorSecondary}" Margin="0,0,0,4"/>
                     <TextBlock Name="WebLink" Text="Stránka prekladu" TextDecorations="Underline" Foreground="${eColorMain}" FontSize="12" Cursor="Hand"/>
-                    <TextBlock Name="SupportLink" Text="${eSupportText}" TextDecorations="Underline" Foreground="${eColorMain}" FontSize="11" Margin="0,4,0,0" Cursor="Hand"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                        <TextBlock Name="SupportLink" Text="${eSupportText}" TextDecorations="Underline" Foreground="${eColorMain}" FontSize="11" Margin="0,0,10,0" Cursor="Hand"/>
+                        <TextBlock Name="ChangelogLink" Text="Zobraziť novinky" TextDecorations="Underline" Foreground="${eColorMain}" FontSize="11" Cursor="Hand"/>
+                    </StackPanel>
                 </StackPanel>
                 <Border Grid.Column="1" Background="#4C3E4B37" BorderBrush="#3E4B37" BorderThickness="1" CornerRadius="4" Padding="8,4" VerticalAlignment="Top">
                     <TextBlock Text="${eTranVersion}" FontSize="10" Foreground="${eColorMain}"/>
@@ -301,11 +308,31 @@ try {
             </StackPanel>
         </StackPanel>
 
-        <Grid Name="QrOverlay" Visibility="Collapsed" Background="#919B82" Grid.Row="0" Grid.RowSpan="2">
-            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                <Image Name="QrImage" Width="240" Height="240" Stretch="Uniform" Margin="0,0,0,20"/>
-                <Button Name="CloseQrButton" Content="Zavrieť" Width="120" Height="36" Background="#3E4B37" Foreground="#F5F7F2" BorderThickness="0" FontSize="13" FontWeight="Bold" Cursor="Hand" HorizontalAlignment="Center"/>
-            </StackPanel>
+        <Grid Name="QrOverlay" Visibility="Collapsed" Background="#CC000000" Grid.Row="0" Grid.RowSpan="2">
+            <Border Background="#1A1A1A" BorderBrush="#3E4B37" BorderThickness="1" CornerRadius="8" Margin="40" Padding="20" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <StackPanel>
+                    <TextBlock Text="Podpora Prekladu" FontSize="16" FontWeight="Bold" Foreground="${eColorMain}" Margin="0,0,0,15" HorizontalAlignment="Center"/>
+                    <Image Name="QrImage" Width="200" Height="200" Stretch="Uniform" Margin="0,0,0,20"/>
+                    <Button Name="CloseQrButton" Content="Zavrieť" Width="100" Height="30" Background="#3E4B37" Foreground="#F5F7F2" BorderThickness="0" FontSize="12" FontWeight="Bold" Cursor="Hand" HorizontalAlignment="Center"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <Grid Name="ChangelogOverlay" Visibility="Collapsed" Background="#CC000000" Grid.Row="0" Grid.RowSpan="2">
+            <Border Background="#1A1A1A" BorderBrush="#3E4B37" BorderThickness="1" CornerRadius="8" Margin="40" Padding="20" MaxWidth="440" MaxHeight="300" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Text="Novinky v tejto verzii" FontSize="16" FontWeight="Bold" Foreground="${eColorMain}" Margin="0,0,0,15" Grid.Row="0"/>
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,0,0,15">
+                        <TextBlock Text="${eChangelog}" Foreground="${eColorSecondary}" FontSize="12" TextWrapping="Wrap"/>
+                    </ScrollViewer>
+                    <Button Name="CloseChangelogButton" Content="Zavrieť" Width="100" Height="30" Background="#3E4B37" Foreground="#F5F7F2" BorderThickness="0" FontSize="12" FontWeight="Bold" Cursor="Hand" HorizontalAlignment="Right" Grid.Row="2"/>
+                </Grid>
+            </Border>
         </Grid>
 
         </Grid>
@@ -344,9 +371,12 @@ try {
     $WebLink = $Form.FindName("WebLink")
     $AuthorLink = $Form.FindName("AuthorLink")
     $SupportLink = $Form.FindName("SupportLink")
+    $ChangelogLink = $Form.FindName("ChangelogLink")
     $QrOverlay = $Form.FindName("QrOverlay")
     $QrImage = $Form.FindName("QrImage")
     $CloseQrButton = $Form.FindName("CloseQrButton")
+    $ChangelogOverlay = $Form.FindName("ChangelogOverlay")
+    $CloseChangelogButton = $Form.FindName("CloseChangelogButton")
 
     $qrPath = Join-Path $PSScriptRoot "Assets\\qrcode.jpg"
     if ($QrImage -and (Test-Path $qrPath)) {
@@ -377,6 +407,31 @@ try {
         $CloseQrButton.Add_Click({
             if ($QrOverlay) {
                 $QrOverlay.Visibility = "Collapsed"
+            }
+        })
+    }
+
+    if ([string]::IsNullOrWhiteSpace("${eChangelog}")) {
+        if ($ChangelogLink) { $ChangelogLink.Visibility = "Collapsed" }
+    } elseif ($ChangelogLink) {
+        $ChangelogLink.Add_MouseLeftButtonDown({
+            param($sender, $e)
+            if ($ChangelogOverlay) {
+                $ChangelogOverlay.Visibility = "Visible"
+            }
+        })
+        $ChangelogLink.Add_MouseEnter({
+            $ChangelogLink.Foreground = "${eColorSecondary}"
+        })
+        $ChangelogLink.Add_MouseLeave({
+            $ChangelogLink.Foreground = "${eColorMain}"
+        })
+    }
+
+    if ($CloseChangelogButton) {
+        $CloseChangelogButton.Add_Click({
+            if ($ChangelogOverlay) {
+                $ChangelogOverlay.Visibility = "Collapsed"
             }
         })
     }
@@ -477,15 +532,31 @@ try {
         try {
             $src = Join-Path $PSScriptRoot "Assets"
             if (Test-Path $src) {
-                $assets = Get-ChildItem -Path $src | Where-Object { $_.Name -ne 'banner.jpg' }
-                foreach ($item in $assets) {
-                    Copy-Item -Path $item.FullName -Destination $targetInstallPath -Recurse -Force
-                    try { [System.Windows.Forms.Application]::DoEvents() } catch { }
+                $assets = @(Get-ChildItem -Path $src | Where-Object { $_.Name -ne 'banner.jpg' -and $_.Name -ne 'qrcode.jpg' })
+                $totalFiles = $assets.Count
+                if ($totalFiles -gt 0) {
+                    $InstallProgress.IsIndeterminate = $false
+                    $InstallProgress.Maximum = $totalFiles
+                    $InstallProgress.Value = 0
+                    
+                    $currentFile = 0
+                    foreach ($item in $assets) {
+                        $currentFile++
+                        $percent = [math]::Truncate(($currentFile / $totalFiles) * 100)
+                        $StatusText.Text = "Kopírujem: " + $item.Name
+                        $InstallProgress.Value = $currentFile
+                        if ($ProgressPercent) { $ProgressPercent.Text = "$percent%" }
+                        try { [System.Windows.Forms.Application]::DoEvents() } catch { }
+                        
+                        Copy-Item -Path $item.FullName -Destination $targetInstallPath -Recurse -Force
+                        
+                        try { [System.Windows.Forms.Application]::DoEvents() } catch { }
+                    }
                 }
             }
             
             $InstallProgress.IsIndeterminate = $false
-            $InstallProgress.Value = 100
+            $InstallProgress.Value = $InstallProgress.Maximum
             $StatusText.Text = "Inštalácia bola úspešná!"
             if ($ProgressPercent) { $ProgressPercent.Text = "100%" }
             $InstallButton.Content = "Hotovo"
@@ -519,8 +590,8 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
   };
 
   const handleGenerate = async () => {
-    if (!gameName || !author || !validationPath) {
-      alert('Prosím vyplňte všetky textové polia');
+    if (!gameName || !author || !translationVersion || !gameVersion || !translationLink || !validationPath) {
+      alert('Prosím, vyplňte všetky povinné polia (Názov Hry, Autor Prekladu, Verzia prekladu, Na verziu hry, Link na stránku prekladu, Overovacia Cesta).');
       return;
     }
 
@@ -534,6 +605,7 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
       authorLink,
       gameVersion,
       translationVersion,
+      changelog,
       translationLink,
       supportText,
       validationPath,
@@ -635,6 +707,7 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                         setAuthorLink(item.authorLink || 'https://komunitni-preklady.org/tym/flego');
                         setGameVersion(item.gameVersion);
                         setTranslationVersion(item.translationVersion);
+                        setChangelog(item.changelog || '');
                         setTranslationLink(item.translationLink);
                         setSupportText(item.supportText || 'Investuj do slovenčiny v hrách');
                         setValidationPath(item.validationPath);
@@ -772,6 +845,16 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                   onChange={(e) => setSupportText(e.target.value)}
                   placeholder="Investuj do slovenčiny v hrách"
                   className="w-full bg-[#131A11] border border-[#3E4B37] text-[#F5F7F2] rounded-[4px] px-2 py-1.5 text-xs focus:outline-none focus:border-[#919B82] transition-colors"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-[9px] uppercase text-[#919B82] ml-1">Novinky v tejto verzii (Changelog)</label>
+                <textarea 
+                  value={changelog}
+                  onChange={(e) => setChangelog(e.target.value)}
+                  placeholder="Aké zmeny prináša táto verzia?"
+                  className="w-full bg-[#131A11] border border-[#3E4B37] text-[#F5F7F2] rounded-[4px] px-2 py-1.5 text-xs focus:outline-none focus:border-[#919B82] transition-colors resize-y min-h-[60px]"
                 />
               </div>
 
@@ -1052,15 +1135,26 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                   <a href={translationLink} target="_blank" rel="noopener noreferrer" className="text-[11px] lg:text-xs underline inline-block mt-1 truncate max-w-full" style={{ color: textColorMain }}>
                     Stránka prekladu
                   </a>
-                  {supportText && qrCodePreview && (
-                    <button 
-                      onClick={() => setShowSupportQrMockup(true)}
-                      className="text-[10px] lg:text-[11px] underline block mt-1 text-left truncate max-w-full hover:opacity-80 transition-opacity" 
-                      style={{ color: textColorMain }}
-                    >
-                      {supportText}
-                    </button>
-                  )}
+                  <div className="flex flex-row items-center gap-3 mt-1 overflow-hidden w-full">
+                    {supportText && qrCodePreview && (
+                      <button 
+                        onClick={() => setShowSupportQrMockup(true)}
+                        className="text-[10px] lg:text-[11px] underline shrink-0 text-left truncate hover:opacity-80 transition-opacity" 
+                        style={{ color: textColorMain }}
+                      >
+                        {supportText}
+                      </button>
+                    )}
+                    {changelog && (
+                      <button 
+                        onClick={() => setShowChangelogMockup(true)}
+                        className="text-[10px] lg:text-[11px] underline shrink-0 text-left truncate hover:opacity-80 transition-opacity" 
+                        style={{ color: textColorMain }}
+                      >
+                        Zobraziť novinky
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div className="text-right shrink-0">
                   <span className="text-[9px] lg:text-[10px] bg-[#3E4B37]/30 px-2 py-1 rounded border border-[#3E4B37]" style={{ color: textColorMain }}>{translationVersion || 'v1.0.0'}</span>
@@ -1105,18 +1199,39 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
 
             {/* QR Overlay Mockup */}
             {showSupportQrMockup && (
-              <div className="absolute inset-0 z-50 flex items-center justify-center bg-[#919B82]">
-                <div className="flex flex-col items-center gap-5">
-                  <div className="w-48 h-48 lg:w-[240px] lg:h-[240px] flex items-center justify-center bg-black/10 rounded-lg">
+              <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80">
+                <div className="bg-[#1A1A1A] border border-[#3E4B37] rounded-lg p-5 flex flex-col items-center shadow-2xl scale-[0.85] sm:scale-100 origin-center">
+                  <h3 className="text-base font-bold mb-4" style={{ color: textColorMain }}>Podpora Prekladu</h3>
+                  <div className="w-[180px] h-[180px] lg:w-[200px] lg:h-[200px] flex items-center justify-center bg-transparent mb-5 border border-transparent">
                     {qrCodePreview ? (
                       <img src={qrCodePreview} alt="QR Code" className="w-full h-full object-contain" />
                     ) : (
-                      <span className="text-[#3E4B37] font-bold text-xs uppercase tracking-widest text-center">Vyžaduje sa<br/>QR Kód</span>
+                      <span className="text-[#3E4B37] font-bold text-[10px] uppercase tracking-widest text-center">Chýba QR Kód</span>
                     )}
                   </div>
                   <button 
                     onClick={() => setShowSupportQrMockup(false)}
-                    className="w-[120px] h-9 bg-[#3E4B37] text-[#F5F7F2] font-bold text-[13px] border-none cursor-pointer hover:bg-[#4d5c44] transition-colors"
+                    className="w-[100px] h-[30px] bg-[#3E4B37] text-[#F5F7F2] font-bold text-xs border-none cursor-pointer hover:bg-[#4C5B43] transition-colors rounded"
+                  >
+                    Zavrieť
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Changelog Overlay Mockup */}
+            {showChangelogMockup && (
+              <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 p-6 lg:p-10">
+                <div className="bg-[#1A1A1A] border border-[#3E4B37] rounded-lg p-5 flex flex-col w-[90%] max-w-[440px] max-h-[300px] shadow-2xl scale-[0.95] sm:scale-100 origin-center">
+                  <h3 className="text-base font-bold mb-4 shrink-0" style={{ color: textColorMain }}>Novinky v tejto verzii</h3>
+                  <div className="flex-1 overflow-y-auto mb-4 custom-scrollbar pr-2 min-h-[100px]">
+                    <p className="text-xs whitespace-pre-wrap leading-relaxed" style={{ color: textColorSecondary }}>
+                      {changelog || "Žiadne novinky k zobrazeniu."}
+                    </p>
+                  </div>
+                  <button 
+                    onClick={() => setShowChangelogMockup(false)}
+                    className="w-[100px] h-[30px] bg-[#3E4B37] text-[#F5F7F2] font-bold text-xs border-none cursor-pointer hover:bg-[#4C5B43] transition-colors rounded self-end shrink-0"
                   >
                     Zavrieť
                   </button>
