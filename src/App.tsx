@@ -39,6 +39,7 @@ export interface GameSettings {
   translationLink: string;
   supportText?: string;
   validationPath: string;
+  steamAppId?: string;
   installRelativePath: string;
   fullWindowBackground: boolean;
   textColorMain?: string;
@@ -50,6 +51,7 @@ export default function App() {
   const [author, setAuthor] = useState('Flego');
   const [authorLink, setAuthorLink] = useState('https://komunitni-preklady.org/tym/flego');
   const [validationPath, setValidationPath] = useState('GameName');
+  const [steamAppId, setSteamAppId] = useState('');
   const [installRelativePath, setInstallRelativePath] = useState('');
   const [translationVersion, setTranslationVersion] = useState('v1.0.0');
   const [changelog, setChangelog] = useState('');
@@ -387,6 +389,26 @@ try {
     $ChangelogOverlay = $Form.FindName("ChangelogOverlay")
     $CloseChangelogButton = $Form.FindName("CloseChangelogButton")
 
+    ${steamAppId ? `
+    # Auto-detect game path via Steam App ID
+    $steamId = "${steamAppId.trim()}"
+    if (-not [string]::IsNullOrWhiteSpace($steamId)) {
+        $regKeys = @(
+            "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App $steamId",
+            "HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App $steamId"
+        )
+        foreach ($key in $regKeys) {
+            if (Test-Path $key) {
+                $installLoc = (Get-ItemProperty -Path $key -Name "InstallLocation" -ErrorAction SilentlyContinue).InstallLocation
+                if (-not [string]::IsNullOrWhiteSpace($installLoc) -and (Test-Path $installLoc)) {
+                    $PathTextBox.Text = $installLoc
+                    break
+                }
+            }
+        }
+    }
+    ` : ''}
+
     $qrPath = Join-Path $PSScriptRoot "Assets\\qrcode.jpg"
     if ($QrImage -and (Test-Path $qrPath)) {
         try {
@@ -620,6 +642,7 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
       translationLink,
       supportText,
       validationPath,
+      steamAppId,
       installRelativePath,
       fullWindowBackground,
       textColorMain,
@@ -722,6 +745,7 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                         setTranslationLink(item.translationLink);
                         setSupportText(item.supportText || 'Investuj do slovenčiny v hrách');
                         setValidationPath(item.validationPath);
+                        setSteamAppId(item.steamAppId || '');
                         setInstallRelativePath(item.installRelativePath || '');
                         setFullWindowBackground(item.fullWindowBackground || false);
                         setTextColorMain(item.textColorMain || '#F5F7F2');
@@ -916,6 +940,17 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                   value={validationPath}
                   onChange={(e) => setValidationPath(e.target.value)}
                   placeholder="napr. Crimson Desert"
+                  className="w-full bg-[#131A11] border border-[#3E4B37] text-[#F5F7F2] rounded-[4px] px-2 py-1.5 text-xs focus:outline-none focus:border-[#919B82] transition-colors font-mono"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-[9px] uppercase text-[#919B82] ml-1">Steam App ID (voliteľné)</label>
+                <input 
+                  type="text" 
+                  value={steamAppId}
+                  onChange={(e) => setSteamAppId(e.target.value)}
+                  placeholder="napr. 123450"
                   className="w-full bg-[#131A11] border border-[#3E4B37] text-[#F5F7F2] rounded-[4px] px-2 py-1.5 text-xs focus:outline-none focus:border-[#919B82] transition-colors font-mono"
                 />
               </div>
