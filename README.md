@@ -1,22 +1,27 @@
 # Aegis Patcher Generator (Lokalizátor)
 
 ## Krátky popis
-Aegis Patcher Generator je webová aplikácia určená pre autorov a distribútorov slovenských herných prekladov (a iných módov). Umožňuje jednoducho a rýchlo vygenerovať profesionálny a vizuálne lákavý inštalátor (patcher) bez potreby programovania. Užívateľ vyplní základné údaje o preklade, priloží inštalačné súbory a obrázok (banner) a aplikácia vygeneruje hotový ZIP balíček obsahujúci spustiteľný inštalátor v prostredí PowerShell (WPF GUI).
+Aegis Patcher Generator je webová aplikácia určená pre autorov a distribútorov slovenských a českých herných prekladov (a iných módov). Umožňuje jednoducho a rýchlo vygenerovať profesionálny a vizuálne lákavý inštalátor (patcher) bez potreby programovania. Užívateľ vyplní základné údaje o preklade, priloží inštalačné súbory a obrázok (banner) a aplikácia vygeneruje hotový ZIP balíček obsahujúci spustiteľný inštalátor v prostredí PowerShell (WPF GUI).
 
 ## Vlastnosti a funkcie programu
 
 ### 1. Základné Informácie (Konfigurácia Inštalátora)
 *   **Názov Hry:** Názov hry, pre ktorú je preklad/inštalátor určený. Zobrazuje sa v hlavičke inštalátora.
 *   **Autor Prekladu:** Meno autora alebo tímu zodpovedného za preklad.
+*   **Link autora:** Odkaz na webovú stránku autora alebo tímu (napr. na komunitnú stránku).
 *   **Verzia prekladu:** Aktuálna verzia balíčka lokalizácie (napr. v1.0.0). Zobrazí sa v dizajnovom štítku vpravo hore.
 *   **Na verziu hry:** Údaj o verzii samotnej hry, s ktorou je preklad kompatibilný.
 *   **Link na stránku prekladu:** URL odkaz na web, Discord alebo fórum, kam sa používateľ môže prekliknúť priamo z bežiaceho inštalátora.
-*   **Text podpory a QR Kód (nepovinné):** Umožňuje zobraziť prispôsobiteľný text s výzvou na podporu tvorby (napr. "Investuj do slovenčiny v hrách"). Po kliknutí na odkaz sa v inštalátore zobrazí vizuálny overlay s priloženým QR kódom (napr. PAY by square).
-*   **Novinky v tejto verzii (Changelog):** Možnosť pridať zoznam zmien (changelog). V inštalátore sa vytvorí tlačidlo "Zobraziť novinky", po kliknutí na ktoré sa zobrazí prehľadný panel s textom aktualizácií.
-*   **Overovacia Cesta:** Veľmi dôležitý prvok. Pomáha inštalátoru zistiť, či používateľ vybral na inštaláciu skutočne správnu zložku s hrou. Inštalátor vyhľadá tento reťazec alebo parsuje cestu, aby znížil riziko zlej inštalácie z dôvodu nepozornosti používateľa.
-*   **Cesta na uloženie prekladu (nepovinné):** V prípade, že si inštalátor od používateľa žiada iba koreňovú zložku hry, no vaše súbory patria hlbšie do štruktúry (napr. `Content\Paks`), tento parameter inštalátoru oznámi, kam presne má súbory skopírovať.
+*   **Text podpory a QR Kód (nepovinné):** Umožňuje zobraziť prispôsobiteľný text s výzvou na podporu tvorby. Po kliknutí na odkaz sa v inštalátore zobrazí vizuálny overlay s priloženým QR kódom (napr. PAY by square).
+*   **Novinky v tejto verzii (Changelog):** Možnosť pridať zoznam zmien (changelog). V inštalátore sa vytvorí tlačidlo "Zobraziť novinky", po kliknutí sa zobrazí panel s textom aktualizácií.
+*   **Farby textu (Hlavná a Sekundárna):** Možnosť prispôsobiť si farbu textov inštalátora, aby ladili s nahraným bannerom.
+*   **Overovacia Cesta (napr. názov zložky hry):** Pomáha inštalátoru zistiť, či používateľ vybral na inštaláciu skutočne správnu zložku s hrou. Ak cieľový priečinok neobsahuje definovanú zložku (ako podsložku), inštalátor používateľa pri inštalácii upozorní.
+*   **Steam App ID (voliteľné):** Zadajte číselné ID hry zo služby Steam. Výsledný inštalátor pri otvorení automaticky skontroluje systémové registre (`Uninstall\Steam App ID`) a pokúsi sa samostatne vyhľadať a predvyplniť cestu k nainštalovanej hre.
+*   **Cesta na uloženie prekladu (nepovinné):** V prípade, že si inštalátor od používateľa žiada iba koreňovú zložku hry, no vaše súbory patria hlbšie do štruktúry (napr. `Game\Content\Paks`), tento parameter inštalátoru oznámi, kam presne má súbory skopírovať vzhľadom na zvolený priečinok.
+*   **Informačné bubliny:** Pri prejdení myšou ponad názvy polí sa zobrazí krátka nápoveda (tooltip) vysvetľujúca funkciu jednotlivých parametrov.
 
 ### 2. Vzhľad a Multimédiá
+*   **Dve Jazykové verzie (Mód SK / CZ):** Priamo v aplikácii si môžete v hornej lište prepnúť rozhranie do Češtiny. Vygenerovaný inštalátor potom bude plne poslovenčený alebo počeštený (tlačidlá, hlášky a texty inštalačného okna odpovedajú zvolenému jazyku).
 *   **Obrázok / Banner a QR Kód:** Vizuálna stránka je pre inštalátory veľmi podstatná. Aplikácia umožňuje nahrať vlastný obrázok (banner) a QR kód. Obsahuje **integrovaný nástroj na výrez (crop) bannerov**, takže si ich prispôsobíte presne pre potreby okna inštalátora.
 *   **Obrázok na celé okno inštalátora:** Môžete si vybrať z dvoch dizajnov úvodného bannera - klasický banner s elegantným prechodom alebo rozložený na celú veľkosť okna (full-window mód).
 *   **Prispôsobenie farieb:** Plná kontrola nad farebnou schémou textov. Môžete zmeniť hlavnú farbu textu a sekundárnu farbu doplňujúcich prvkov a prispôsobiť tak vizuál okna presne vašim požiadavkám (podpora pre farby v Hex kóde s farebným výberníkom).

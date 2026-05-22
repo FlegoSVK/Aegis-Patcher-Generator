@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import { FileList } from './components/FileList';
+import { translations, Language } from './translations';
 import { 
   Package, 
   Image as ImageIcon, 
@@ -47,6 +48,9 @@ export interface GameSettings {
 }
 
 export default function App() {
+  const [language, setLanguage] = useState<Language>('sk');
+  const t = translations[language];
+  
   const [gameName, setGameName] = useState('Nová Hra');
   const [author, setAuthor] = useState('Flego');
   const [authorLink, setAuthorLink] = useState('https://komunitni-preklady.org/tym/flego');
@@ -217,13 +221,15 @@ export default function App() {
     const eValidationPath = escapeXml(validationPath);
     const eColorMain = escapeXml(textColorMain || '#F5F7F2');
     const eColorSecondary = escapeXml(textColorSecondary || '#919B82');
-    const eSupportText = escapeXml(supportText || 'Investuj do slovenčiny v hrách');
+    const eSupportText = escapeXml(supportText || t.supportTextInput);
     const eChangelog = escapeXml(changelog || '');
 
     const psLink = translationLink.replace(/'/g, "''");
     const psAuthorLink = (authorLink || '').replace(/'/g, "''");
     const psValidationPath = validationPath.replace(/'/g, "''").trim();
     const psInstallRelativePath = installRelativePath.replace(/'/g, "''").trim();
+
+    const scriptInstallerTitle = t.scriptInstallerTitle.replace('{name}', eName);
 
     return `param()
 Add-Type -AssemblyName PresentationFramework
@@ -241,7 +247,7 @@ try {
     $XAML = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Inštalátor - ${eName} SK preklad" Height="460" Width="540"
+        Title="${scriptInstallerTitle}" Height="460" Width="540"
         WindowStartupLocation="CenterScreen"
         WindowStyle="None"
         AllowsTransparency="True"
@@ -277,16 +283,16 @@ try {
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0">
-                    <TextBlock Text="Inštalácia Prekladu: ${eName}" FontSize="18" FontWeight="Light" Foreground="${eColorMain}" Margin="0,0,0,4" TextWrapping="Wrap"/>
+                    <TextBlock Text="${scriptInstallerTitle}" FontSize="18" FontWeight="Light" Foreground="${eColorMain}" Margin="0,0,0,4" TextWrapping="Wrap"/>
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,2">
-                        <TextBlock Text="Autor: " FontSize="12" Foreground="${eColorSecondary}"/>
+                        <TextBlock Text="${t.scriptAuthor} " FontSize="12" Foreground="${eColorSecondary}"/>
                         <TextBlock Name="AuthorLink" Text="${eAuthor}" FontSize="12" Foreground="${eColorMain}" TextDecorations="Underline" Cursor="Hand"/>
                     </StackPanel>
-                    <TextBlock Text="Pre verziu hry: ${eGameVersion}" FontSize="12" Foreground="${eColorSecondary}" Margin="0,0,0,4"/>
-                    <TextBlock Name="WebLink" Text="Stránka prekladu" TextDecorations="Underline" Foreground="${eColorMain}" FontSize="12" Cursor="Hand"/>
+                    <TextBlock Text="${t.scriptForGameVersion} ${eGameVersion}" FontSize="12" Foreground="${eColorSecondary}" Margin="0,0,0,4"/>
+                    <TextBlock Name="WebLink" Text="${t.scriptTranslationPage}" TextDecorations="Underline" Foreground="${eColorMain}" FontSize="12" Cursor="Hand"/>
                     <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
                         <TextBlock Name="SupportLink" Text="${eSupportText}" TextDecorations="Underline" Foreground="${eColorMain}" FontSize="11" Margin="0,0,10,0" Cursor="Hand"/>
-                        <TextBlock Name="ChangelogLink" Text="Zobraziť novinky" TextDecorations="Underline" Foreground="${eColorMain}" FontSize="11" Cursor="Hand"/>
+                        <TextBlock Name="ChangelogLink" Text="${t.scriptShowNews}" TextDecorations="Underline" Foreground="${eColorMain}" FontSize="11" Cursor="Hand"/>
                     </StackPanel>
                 </StackPanel>
                 <Border Grid.Column="1" Background="#4C3E4B37" BorderBrush="#3E4B37" BorderThickness="1" CornerRadius="4" Padding="8,4" VerticalAlignment="Top">
@@ -295,8 +301,8 @@ try {
             </Grid>
             
             <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
-                <TextBlock Text="Cesta k hre:" FontSize="12" Foreground="${eColorSecondary}"/>
-                <TextBlock Text="(Overenie: ${eValidationPath})" FontSize="10" Foreground="#4A5A40" Margin="8,2,0,0" FontStyle="Italic"/>
+                <TextBlock Text="${t.scriptGamePath}" FontSize="12" Foreground="${eColorSecondary}"/>
+                <TextBlock Text="(${t.scriptValidation}: ${eValidationPath})" FontSize="10" Foreground="#4A5A40" Margin="8,2,0,0" FontStyle="Italic"/>
             </StackPanel>
             <Grid>
                 <Grid.ColumnDefinitions>
@@ -304,27 +310,27 @@ try {
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <TextBox Name="PathTextBox" Grid.Column="0" Height="32" FontSize="12" VerticalContentAlignment="Center" Background="#222222" Foreground="${eColorMain}" BorderBrush="#333333" BorderThickness="1" Padding="8,0,8,0"/>
-                <Button Name="BrowseButton" Content="Prehľadávať..." Grid.Column="1" Width="100" Margin="10,0,0,0" Background="Transparent" Foreground="${eColorMain}" BorderBrush="#333333" BorderThickness="1" Cursor="Hand" FontSize="11" Height="32"/>
+                <Button Name="BrowseButton" Content="${t.scriptBrowse}" Grid.Column="1" Width="100" Margin="10,0,0,0" Background="Transparent" Foreground="${eColorMain}" BorderBrush="#333333" BorderThickness="1" Cursor="Hand" FontSize="11" Height="32"/>
             </Grid>
             
             <Grid Margin="0,20,0,5">
-                <TextBlock Name="StatusText" Text="Pripravený na inštaláciu" Foreground="${eColorSecondary}" FontSize="10" TextWrapping="NoWrap" HorizontalAlignment="Left"/>
+                <TextBlock Name="StatusText" Text="${t.scriptReady}" Foreground="${eColorSecondary}" FontSize="10" TextWrapping="NoWrap" HorizontalAlignment="Left"/>
                 <TextBlock Name="ProgressPercent" Text="0%" Foreground="${eColorSecondary}" FontSize="10" HorizontalAlignment="Right"/>
             </Grid>
             <ProgressBar Name="InstallProgress" Height="6" Minimum="0" Maximum="100" Background="#222222" Foreground="#3E4B37" BorderThickness="0" Margin="0,0,0,20" IsIndeterminate="False"/>
             
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                <Button Name="CloseButton" Content="Zavrieť" Width="100" Height="32" Margin="0,0,10,0" Background="Transparent" Foreground="${eColorMain}" BorderBrush="#333333" BorderThickness="1" FontSize="12" Cursor="Hand"/>
-                <Button Name="InstallButton" Content="Inštalovať Preklad" Width="140" Height="32" Background="#3E4B37" Foreground="${eColorMain}" BorderThickness="0" FontSize="12" FontWeight="Bold" Cursor="Hand"/>
+                <Button Name="CloseButton" Content="${t.scriptClose}" Width="100" Height="32" Margin="0,0,10,0" Background="Transparent" Foreground="${eColorMain}" BorderBrush="#333333" BorderThickness="1" FontSize="12" Cursor="Hand"/>
+                <Button Name="InstallButton" Content="${t.scriptInstall}" Width="140" Height="32" Background="#3E4B37" Foreground="${eColorMain}" BorderThickness="0" FontSize="12" FontWeight="Bold" Cursor="Hand"/>
             </StackPanel>
         </StackPanel>
 
         <Grid Name="QrOverlay" Visibility="Collapsed" Background="#CC000000" Grid.Row="0" Grid.RowSpan="2">
             <Border Background="#1A1A1A" BorderBrush="#3E4B37" BorderThickness="1" CornerRadius="8" Margin="40" Padding="20" HorizontalAlignment="Center" VerticalAlignment="Center">
                 <StackPanel>
-                    <TextBlock Text="Podpora Prekladu" FontSize="16" FontWeight="Bold" Foreground="${eColorMain}" Margin="0,0,0,15" HorizontalAlignment="Center"/>
+                    <TextBlock Text="${t.scriptSupportTitle}" FontSize="16" FontWeight="Bold" Foreground="${eColorMain}" Margin="0,0,0,15" HorizontalAlignment="Center"/>
                     <Image Name="QrImage" Width="200" Height="200" Stretch="Uniform" Margin="0,0,0,20"/>
-                    <Button Name="CloseQrButton" Content="Zavrieť" Width="100" Height="30" Background="#3E4B37" Foreground="#F5F7F2" BorderThickness="0" FontSize="12" FontWeight="Bold" Cursor="Hand" HorizontalAlignment="Center"/>
+                    <Button Name="CloseQrButton" Content="${t.scriptClose}" Width="100" Height="30" Background="#3E4B37" Foreground="#F5F7F2" BorderThickness="0" FontSize="12" FontWeight="Bold" Cursor="Hand" HorizontalAlignment="Center"/>
                 </StackPanel>
             </Border>
         </Grid>
@@ -337,11 +343,11 @@ try {
                         <RowDefinition Height="*"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
-                    <TextBlock Text="Novinky v tejto verzii" FontSize="16" FontWeight="Bold" Foreground="${eColorMain}" Margin="0,0,0,15" Grid.Row="0"/>
+                    <TextBlock Text="${t.scriptNewsTitle}" FontSize="16" FontWeight="Bold" Foreground="${eColorMain}" Margin="0,0,0,15" Grid.Row="0"/>
                     <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,0,0,15">
                         <TextBlock Text="${eChangelog}" Foreground="${eColorSecondary}" FontSize="12" TextWrapping="Wrap"/>
                     </ScrollViewer>
-                    <Button Name="CloseChangelogButton" Content="Zavrieť" Width="100" Height="30" Background="#3E4B37" Foreground="#F5F7F2" BorderThickness="0" FontSize="12" FontWeight="Bold" Cursor="Hand" HorizontalAlignment="Right" Grid.Row="2"/>
+                    <Button Name="CloseChangelogButton" Content="${t.scriptClose}" Width="100" Height="30" Background="#3E4B37" Foreground="#F5F7F2" BorderThickness="0" FontSize="12" FontWeight="Bold" Cursor="Hand" HorizontalAlignment="Right" Grid.Row="2"/>
                 </Grid>
             </Border>
         </Grid>
@@ -506,7 +512,7 @@ try {
 
     $BrowseButton.Add_Click({
         $folderBrowser = New-Object System.Windows.Forms.FolderBrowserDialog
-        $folderBrowser.Description = "Vyberte hlavnú zložku hry"
+        $folderBrowser.Description = "${t.scriptBrowseTitle}"
         if ($folderBrowser.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
             $PathTextBox.Text = $folderBrowser.SelectedPath
         }
@@ -518,7 +524,7 @@ try {
     $InstallButton.Add_Click({
         $selectedPath = $PathTextBox.Text
         if ([string]::IsNullOrWhiteSpace($selectedPath) -or !(Test-Path $selectedPath)) {
-            [System.Windows.Forms.MessageBox]::Show("Prosím, vyberte platnú cestu k hre.", "Chyba", 0, 16)
+            [System.Windows.Forms.MessageBox]::Show("${t.scriptErrInvalidPath}", "${t.scriptFailTitle}", 0, 16)
             return
         }
         
@@ -541,7 +547,7 @@ try {
         }
         
         if (-not $isValid) {
-            $msgResult = [System.Windows.Forms.MessageBox]::Show("Vybraná cesta ($selectedPath) sa pravdepodobne nezhoduje s očakávanou hrou ($ValidationPath).\`n\`nChcete napriek tomu inštalovať do tejto zložky?", "Upozornenie", 4, 48)
+            $msgResult = [System.Windows.Forms.MessageBox]::Show("${t.scriptErrMismatchText}", "${t.scriptErrMismatchTitle}", 4, 48)
             if ($msgResult -ne 6) {
                 return
             }
@@ -559,8 +565,8 @@ try {
         $InstallButton.IsEnabled = $false
         $BrowseButton.Visibility = "Collapsed"
         $InstallProgress.IsIndeterminate = $true
-        $StatusText.Text = "Inštalujem..."
-        if ($ProgressPercent) { $ProgressPercent.Text = "Inštalujem" }
+        $StatusText.Text = "${t.scriptInstalling}"
+        if ($ProgressPercent) { $ProgressPercent.Text = "${t.scriptInstalling}" }
         
         try {
             $src = Join-Path $PSScriptRoot "Assets"
@@ -576,7 +582,7 @@ try {
                     foreach ($item in $assets) {
                         $currentFile++
                         $percent = [math]::Truncate(($currentFile / $totalFiles) * 100)
-                        $StatusText.Text = "Kopírujem: " + $item.Name
+                        $StatusText.Text = "${t.scriptCopying} " + $item.Name
                         $InstallProgress.Value = $currentFile
                         if ($ProgressPercent) { $ProgressPercent.Text = "$percent%" }
                         try { [System.Windows.Forms.Application]::DoEvents() } catch { }
@@ -590,17 +596,17 @@ try {
             
             $InstallProgress.IsIndeterminate = $false
             $InstallProgress.Value = $InstallProgress.Maximum
-            $StatusText.Text = "Inštalácia bola úspešná!"
+            $StatusText.Text = "${t.scriptSuccess}"
             if ($ProgressPercent) { $ProgressPercent.Text = "100%" }
-            $InstallButton.Content = "Hotovo"
+            $InstallButton.Content = "${t.scriptDone}"
             $InstallButton.IsEnabled = $true
             # Workaround to clear previous events (just change what click does)
             $InstallButton.Add_Click({ $Form.Close() })
         } catch {
             $InstallProgress.IsIndeterminate = $false
-            $StatusText.Text = "Chyba pri inštalácii."
-            if ($ProgressPercent) { $ProgressPercent.Text = "Chyba" }
-            [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, "Chyba", 0, 16)
+            $StatusText.Text = "${t.scriptFailTitle}"
+            if ($ProgressPercent) { $ProgressPercent.Text = "${t.scriptFailTitle}" }
+            [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, "${t.scriptFailTitle}", 0, 16)
             $InstallButton.IsEnabled = $true
             $BrowseButton.Visibility = "Visible"
             $BrowseButton.IsEnabled = $true
@@ -610,7 +616,7 @@ try {
     [void]$Form.ShowDialog()
 
 } catch {
-    [System.Windows.Forms.MessageBox]::Show("Kritická chyba inštalátora: \`n$($_.Exception.Message)", "Chyba", 0, 16)
+    [System.Windows.Forms.MessageBox]::Show("${t.scriptCriticalErr} \`n$($_.Exception.Message)", "${t.scriptFailTitle}", 0, 16)
 }
 `;
   };
@@ -618,13 +624,13 @@ try {
   const generateBatchScript = () => {
     return `@echo off
 chcp 65001 >nul
-echo Spustam instalator prekladu...
+echo ${t.scriptBatchEcho}
 powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Install.ps1"`;
   };
 
   const handleGenerate = async () => {
     if (!gameName || !author || !translationVersion || !gameVersion || !translationLink || !validationPath) {
-      alert('Prosím, vyplňte všetky povinné polia (Názov Hry, Autor Prekladu, Verzia prekladu, Na verziu hry, Link na stránku prekladu, Overovacia Cesta).');
+      alert(t.alertMissingFields);
       return;
     }
 
@@ -700,12 +706,12 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
       const safeTranVersion = translationVersion.replace(/[^a-z0-9.-]/gi, '_').toLowerCase();
       saveAs(content, `${safeGameName}_Hra_${safeGameVersion}_Preklad_${safeTranVersion}.zip`);
 
-      setSuccessMessage('ZIP archív bol úspešne vygenerovaný!');
+      setSuccessMessage(t.successMessage);
       setTimeout(() => setSuccessMessage(''), 5000);
       
     } catch (err) {
       console.error(err);
-      alert('Došlo k chybe pri vytváraní archívu.');
+      alert(t.alertGenerateError);
     } finally {
       setIsGenerating(false);
     }
@@ -718,18 +724,18 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
           <div className="bg-[#131A11] border border-[#3E4B37] rounded-xl shadow-2xl overflow-hidden max-w-[500px] w-full flex flex-col transform transition-all">
             <div className="p-4 border-b border-[#3E4B37]/30 flex justify-between items-center bg-[#0D110C]">
-              <h3 className="text-[#F5F7F2] font-bold uppercase tracking-wider text-sm">História nastavení</h3>
+              <h3 className="text-[#F5F7F2] font-bold uppercase tracking-wider text-sm">{t.historyTitle}</h3>
               <button 
                 onClick={() => setShowHistoryModal(false)}
                 className="text-[#919B82] hover:text-[#F5F7F2] transition-colors"
-                title="Zavrieť"
+                title={t.historyClose}
               >
                 <X size={18} />
               </button>
             </div>
             <div className="p-4 max-h-[60vh] overflow-y-auto space-y-2 custom-scrollbar">
               {history.length === 0 ? (
-                <p className="text-[#919B82] text-sm text-center py-4 italic">Žiadna história. Vygenerujte inštalátor pre novú hru.</p>
+                <p className="text-[#919B82] text-sm text-center py-4 italic">{t.historyEmpty}</p>
               ) : (
                 history.map(item => (
                   <div key={item.id} className="flex justify-between items-center bg-[#1A2416] border border-[#3E4B37]/50 hover:border-[#919B82] rounded p-3 transition-colors">
@@ -755,14 +761,14 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                     >
                       <h4 className="text-[#F5F7F2] font-semibold text-sm truncate">{item.gameName || 'Nepomenovaná hra'}</h4>
                       <div className="text-[10px] text-[#919B82] mt-1 space-x-2">
-                        <span>Hra: {item.gameVersion}</span>
-                        <span>Preklad: {item.translationVersion}</span>
+                        <span>{t.historyGeneratedFor} {item.gameVersion}</span>
+                        <span>{t.historyTranslation} {item.translationVersion}</span>
                       </div>
                     </div>
                     <button 
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (window.confirm(`Naozaj chcete vymazať nastavenia pre hru "${item.gameName}"?`)) {
+                        if (window.confirm(`${t.historyDeleteSettings} "${item.gameName}"?`)) {
                           setHistory(prev => {
                             const updated = prev.filter(h => h.id !== item.id);
                             localStorage.setItem('gameSettingsHistory', JSON.stringify(updated));
@@ -772,7 +778,7 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                       }}
                       className="text-red-500/80 hover:text-red-400 text-[10px] uppercase tracking-wider font-bold py-2 px-3 bg-red-950/30 rounded border border-red-900/50 hover:border-red-500/50 transition-colors"
                     >
-                      Vymazať
+                      {t.historyDeleteBtn}
                     </button>
                   </div>
                 ))
@@ -788,15 +794,29 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
           <h1 className="text-lg font-bold tracking-tight uppercase hidden md:block">Aegis <span className="text-[#919B82]">Patcher Generator</span></h1>
         </div>
         <div className="flex items-center gap-4 md:gap-6 text-[9px] md:text-[11px] uppercase tracking-widest text-[#919B82]">
+          <div className="flex bg-[#131A11] border border-[#3E4B37] rounded overflow-hidden">
+            <button 
+              onClick={() => setLanguage('sk')}
+              className={`px-2 py-1 font-bold ${language === 'sk' ? 'bg-[#3E4B37] text-white' : 'hover:bg-[#3E4B37]/30'}`}
+            >
+              SK
+            </button>
+            <button 
+              onClick={() => setLanguage('cz')}
+              className={`px-2 py-1 font-bold ${language === 'cz' ? 'bg-[#3E4B37] text-white' : 'hover:bg-[#3E4B37]/30'}`}
+            >
+              CZ
+            </button>
+          </div>
           <button 
             onClick={() => setShowHistoryModal(true)}
             className="hover:text-[#F5F7F2] transition-colors border border-[#3E4B37] rounded px-3 py-1.5 hover:bg-[#3E4B37]/20 flex items-center gap-1 cursor-pointer"
           >
-            História
+            {t.historyBtn}
           </button>
-          <span className="hidden sm:inline">Build Engine v2.4.0</span>
+          <span className="hidden sm:inline">{t.buildEngine}</span>
           <span className="h-4 w-[1px] bg-[#3E4B37] hidden sm:inline"></span>
-          <span className="text-[#F5F7F2]">Session: {author || 'Flego'}</span>
+          <span className="text-[#F5F7F2]">{t.session} {author || 'Flego'}</span>
         </div>
       </header>
 
@@ -806,10 +826,10 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
         <aside className="border-b lg:border-b-0 lg:border-r border-[#3E4B37]/20 flex flex-col bg-[#0D110C] z-10 lg:overflow-hidden min-h-[600px] lg:min-h-0">
           <div className="flex-1 overflow-y-auto px-5 py-4 lg:px-6 lg:py-5 flex flex-col gap-5 custom-scrollbar">
             <section>
-            <h2 className="text-[11px] font-bold text-[#919B82] uppercase mb-3 tracking-wider">Základné Informácie</h2>
+            <h2 className="text-[11px] font-bold text-[#919B82] uppercase mb-3 tracking-wider">{t.coreInfoSection}</h2>
             <div className="space-y-3">
               <div className="space-y-1">
-                <label className="block text-[9px] uppercase text-[#919B82] ml-1">Názov Hry</label>
+                <label className="block text-[9px] uppercase text-[#919B82] ml-1" title={t.gameNameTooltip}>{t.gameNameInput}</label>
                 <input 
                   type="text" 
                   value={gameName}
@@ -820,7 +840,7 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
               
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="block text-[9px] uppercase text-[#919B82] ml-1">Autor Prekladu</label>
+                  <label className="block text-[9px] uppercase text-[#919B82] ml-1" title={t.authorTooltip}>{t.authorInput}</label>
                   <input 
                     type="text" 
                     value={author}
@@ -830,7 +850,7 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                 </div>
 
                 <div className="space-y-1">
-                  <label className="block text-[9px] uppercase text-[#919B82] ml-1">Link autora</label>
+                  <label className="block text-[9px] uppercase text-[#919B82] ml-1" title={t.authorLinkTooltip}>{t.authorLinkInput}</label>
                   <input 
                     type="text" 
                     value={authorLink}
@@ -842,7 +862,7 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
               
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="block text-[9px] uppercase text-[#919B82] ml-1">Verzia prekladu</label>
+                  <label className="block text-[9px] uppercase text-[#919B82] ml-1" title={t.transVersionTooltip}>{t.transVersionInput}</label>
                   <input 
                     type="text" 
                     value={translationVersion}
@@ -852,7 +872,7 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                 </div>
                 
                 <div className="space-y-1">
-                  <label className="block text-[9px] uppercase text-[#919B82] ml-1">Na verziu hry</label>
+                  <label className="block text-[9px] uppercase text-[#919B82] ml-1" title={t.gameVersionTooltip}>{t.gameVersionInput}</label>
                   <input 
                     type="text" 
                     value={gameVersion}
@@ -863,7 +883,7 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
               </div>
 
               <div className="space-y-1">
-                <label className="block text-[9px] uppercase text-[#919B82] ml-1">Link na stránku prekladu</label>
+                <label className="block text-[9px] uppercase text-[#919B82] ml-1" title={t.transLinkTooltip}>{t.transLinkInput}</label>
                 <input 
                   type="text" 
                   value={translationLink}
@@ -873,29 +893,29 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
               </div>
 
               <div className="space-y-1">
-                <label className="block text-[9px] uppercase text-[#919B82] ml-1">Text podpory (nepovinné)</label>
+                <label className="block text-[9px] uppercase text-[#919B82] ml-1" title={t.supportTextTooltip}>{t.supportTextInput}</label>
                 <input 
                   type="text" 
                   value={supportText}
                   onChange={(e) => setSupportText(e.target.value)}
-                  placeholder="Investuj do slovenčiny v hrách"
+                  placeholder={t.supportTextInput}
                   className="w-full bg-[#131A11] border border-[#3E4B37] text-[#F5F7F2] rounded-[4px] px-2 py-1.5 text-xs focus:outline-none focus:border-[#919B82] transition-colors"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="block text-[9px] uppercase text-[#919B82] ml-1">Novinky v tejto verzii (Changelog)</label>
+                <label className="block text-[9px] uppercase text-[#919B82] ml-1" title={t.changelogTooltip}>{t.changelogInput}</label>
                 <textarea 
                   value={changelog}
                   onChange={(e) => setChangelog(e.target.value)}
-                  placeholder="Aké zmeny prináša táto verzia?"
+                  placeholder={t.changelogPlaceholder}
                   className="w-full bg-[#131A11] border border-[#3E4B37] text-[#F5F7F2] rounded-[4px] px-2 py-1.5 text-xs focus:outline-none focus:border-[#919B82] transition-colors resize-y min-h-[60px]"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="block text-[9px] uppercase text-[#919B82] ml-1">Farba Textu (Hlavná)</label>
+                  <label className="block text-[9px] uppercase text-[#919B82] ml-1" title={t.textColorMainTooltip}>{t.textColorMainInput}</label>
                   <div className="flex bg-[#131A11] border border-[#3E4B37] rounded-[4px] p-1 gap-2 items-center">
                     <input
                       type="color"
@@ -914,7 +934,7 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                 </div>
 
                 <div className="space-y-1">
-                  <label className="block text-[9px] uppercase text-[#919B82] ml-1">Farba Textu (Sekundárna)</label>
+                  <label className="block text-[9px] uppercase text-[#919B82] ml-1" title={t.textColorSecTooltip}>{t.textColorSecInput}</label>
                   <div className="flex bg-[#131A11] border border-[#3E4B37] rounded-[4px] p-1 gap-2 items-center">
                     <input
                       type="color"
@@ -934,7 +954,7 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
               </div>
 
               <div className="space-y-1">
-                <label className="block text-[9px] uppercase text-[#919B82] ml-1">Overovacia Cesta (napr. názov zložky hry)</label>
+                <label className="block text-[9px] uppercase text-[#919B82] ml-1" title={t.validationPathTooltip}>{t.validationPathInput}</label>
                 <input 
                   type="text" 
                   value={validationPath}
@@ -945,7 +965,7 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
               </div>
 
               <div className="space-y-1">
-                <label className="block text-[9px] uppercase text-[#919B82] ml-1">Steam App ID (voliteľné)</label>
+                <label className="block text-[9px] uppercase text-[#919B82] ml-1" title={t.steamAppIdTooltip}>{t.steamAppIdInput}</label>
                 <input 
                   type="text" 
                   value={steamAppId}
@@ -956,7 +976,7 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
               </div>
 
               <div className="space-y-1">
-                <label className="block text-[9px] uppercase text-[#919B82] ml-1">Cesta na uloženie prekladu (nepovinné)</label>
+                <label className="block text-[9px] uppercase text-[#919B82] ml-1" title={t.installRelativePathTooltip}>{t.installRelativePathInput}</label>
                 <input 
                   type="text" 
                   value={installRelativePath}
@@ -990,13 +1010,13 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                   onClick={() => bannerInputRef.current?.click()}
                   className="flex-1 bg-transparent border border-[#3E4B37] text-[#919B82] rounded-[4px] py-1.5 text-[11px] font-semibold cursor-pointer hover:bg-[#3E4B37]/20 transition-colors truncate px-2"
                 >
-                  + Banner
+                  {t.addBannerBtn}
                 </button>
                 <button 
                   onClick={() => qrInputRef.current?.click()}
                   className="flex-1 bg-transparent border border-[#3E4B37] text-[#919B82] rounded-[4px] py-1.5 text-[11px] font-semibold cursor-pointer hover:bg-[#3E4B37]/20 transition-colors truncate px-2"
                 >
-                  + QR Kód
+                  {t.addQrBtn}
                 </button>
               </div>
 
@@ -1012,7 +1032,7 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                     <polyline points="20 6 9 17 4 12"></polyline>
                   </svg>
                 </div>
-                <span className="text-[10px] lg:text-[11px] text-[#919B82] group-hover:text-[#F5F7F2] transition-colors">Obrázok na celé okno inštalátora</span>
+                <span className="text-[10px] lg:text-[11px] text-[#919B82] group-hover:text-[#F5F7F2] transition-colors">{t.fullWindowImageLabel}</span>
               </label>
             </div>
             <div className="flex gap-2 mb-3">
@@ -1036,13 +1056,13 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                   onClick={() => filesInputRef.current?.click()}
                   className="flex-1 bg-transparent border border-[#3E4B37] text-[#919B82] rounded-[4px] py-1.5 text-[10px] lg:text-[11px] font-semibold cursor-pointer hover:bg-[#3E4B37]/20 transition-colors truncate px-2"
                 >
-                  + Súbory
+                  {t.addFilesBtn}
                 </button>
                 <button 
                   onClick={() => folderInputRef.current?.click()}
                   className="flex-1 bg-transparent border border-[#3E4B37] text-[#919B82] rounded-[4px] py-1.5 text-[10px] lg:text-[11px] font-semibold cursor-pointer hover:bg-[#3E4B37]/20 transition-colors truncate px-2"
                 >
-                  + Priečinok
+                  {t.addFolderBtn}
                 </button>
               </div>
             </div>
@@ -1052,7 +1072,7 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                 {bannerLoadError ? (
                   <div className="w-full h-full flex flex-col items-center justify-center bg-red-900/20 text-[#919B82] p-2 text-center">
                     <span className="text-2xl mb-1">⚠️</span>
-                    <span className="text-[10px] uppercase tracking-wider">Chyba pri načítaní bannera</span>
+                    <span className="text-[10px] uppercase tracking-wider">{t.bannerError}</span>
                   </div>
                 ) : (
                   <img src={bannerPreview} alt="Banner Preview" className="w-full h-full object-cover opacity-80" onError={() => setBannerLoadError(true)} />
@@ -1062,13 +1082,13 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                     onClick={() => setCropModalOpen(true)}
                     className="px-4 py-2 bg-[#3E4B37] hover:bg-[#4C5B43] text-[#F5F7F2] text-xs font-bold uppercase tracking-wider rounded transition-colors"
                   >
-                    Upraviť
+                    {t.editBtn}
                   </button>
                   <button 
                     onClick={() => { setBannerPreview(null); setBannerFile(null); setBannerLoadError(false); }}
                     className="px-4 py-2 bg-red-900/80 hover:bg-red-800 text-white text-xs font-bold uppercase tracking-wider rounded transition-colors"
                   >
-                    Odstrániť
+                    {t.deleteBtn}
                   </button>
                 </div>
               </div>
@@ -1079,7 +1099,7 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                 {qrLoadError ? (
                   <div className="w-full h-full flex flex-col items-center justify-center bg-red-900/20 text-[#919B82] p-2 text-center">
                     <span className="text-xl mb-1">⚠️</span>
-                    <span className="text-[9px] uppercase tracking-wider leading-tight">Chyba<br/>QR</span>
+                    <span className="text-[9px] uppercase tracking-wider leading-tight">{t.qrError}</span>
                   </div>
                 ) : (
                   <img src={qrCodePreview} alt="QR Code Preview" className="w-full h-full object-contain" onError={() => setQrLoadError(true)} />
@@ -1089,7 +1109,7 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                     onClick={() => { setQrCodePreview(null); setQrCodeFile(null); setQrLoadError(false); }}
                     className="px-2 py-1 bg-red-900/80 hover:bg-red-800 text-white text-[10px] font-bold uppercase tracking-wider rounded transition-colors"
                   >
-                    Odstrániť
+                    {t.deleteBtn}
                   </button>
                 </div>
               </div>
@@ -1111,7 +1131,7 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
               disabled={isGenerating}
               className="w-full bg-[#3E4B37] text-[#F5F7F2] rounded-[4px] py-2 lg:py-2.5 font-bold text-sm uppercase tracking-widest shadow-lg shadow-[#1A2416] border-none cursor-pointer hover:bg-[#4d5c44] transition-all duration-200 disabled:opacity-50"
             >
-              {isGenerating ? 'Generujem Balík...' : 'Vygenerovať ZIP Balík'}
+              {isGenerating ? t.generateBtnLoading : t.generateBtn}
             </button>
           </div>
         </aside>
@@ -1182,7 +1202,7 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                   </p>
                   <p className="text-[11px] lg:text-xs truncate w-full" style={{ color: textColorSecondary }}>Pre verziu hry: {gameVersion}</p>
                   <a href={translationLink} target="_blank" rel="noopener noreferrer" className="text-[11px] lg:text-xs underline inline-block mt-1 truncate max-w-full hover:opacity-80 transition-opacity" style={{ color: textColorMain }}>
-                    Stránka prekladu
+                    {t.previewTranslationHelp}
                   </a>
                   <div className="flex flex-row items-center gap-3 mt-1 overflow-hidden w-full">
                     {supportText && qrCodePreview && (
@@ -1200,7 +1220,7 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                         className="text-[10px] lg:text-[11px] underline shrink-0 text-left truncate hover:opacity-80 transition-opacity" 
                         style={{ color: textColorMain }}
                       >
-                        Zobraziť novinky
+                        {t.previewShowNews}
                       </button>
                     )}
                   </div>
@@ -1212,15 +1232,15 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
               
               <div className="my-1 lg:my-2">
                 <div className="flex items-baseline gap-2 mb-1">
-                  <p className="text-[11px] lg:text-xs" style={{ color: textColorSecondary }}>Cesta k hre:</p>
-                  <span className="text-[10px] text-[#4A5A40] italic truncate flex-1">(Overenie: {validationPath})</span>
+                  <p className="text-[11px] lg:text-xs" style={{ color: textColorSecondary }}>{t.previewGamePath}</p>
+                  <span className="text-[10px] text-[#4A5A40] italic truncate flex-1">({t.previewValidation}: {validationPath})</span>
                 </div>
                 <div className="flex gap-2.5 items-center">
                   <div className="flex-1 bg-[#222] border border-[#333] px-2 h-8 text-[11px] lg:text-xs flex items-center" style={{ color: textColorMain }}>
                     
                   </div>
                   <button className="w-[100px] h-8 bg-transparent border border-[#333] text-[11px] hover:bg-[#1a1a1a] cursor-pointer transition-all hover:border-[#555] hover:shadow-[0_0_8px_rgba(255,255,255,0.05)] shrink-0" style={{ color: textColorMain }}>
-                    Prehľadávať...
+                    {t.previewBrowse}
                   </button>
                 </div>
               </div>
@@ -1237,10 +1257,10 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                 </div>
                 <div className="flex gap-[10px] justify-end pb-1 lg:pb-0">
                   <button className="w-[100px] h-8 bg-transparent border border-[#333] text-[11px] lg:text-xs hover:bg-[#1a1a1a] cursor-pointer transition-all hover:border-[#555] hover:shadow-[0_0_8px_rgba(255,255,255,0.05)]" style={{ color: textColorMain }}>
-                    Zavrieť
+                    {t.previewClose}
                   </button>
                   <button className="w-[140px] h-8 bg-[#3E4B37] text-[11px] lg:text-xs font-bold border-none cursor-pointer hover:bg-[#4d5c44] transition-all hover:shadow-[0_0_12px_rgba(62,75,55,0.4)] hover:-translate-y-[1px]" style={{ color: textColorMain }}>
-                    Inštalovať Preklad
+                    {t.previewInstall}
                   </button>
                 </div>
               </div>
@@ -1264,7 +1284,7 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                     onClick={() => setShowSupportQrMockup(false)}
                     className="w-[100px] h-[30px] bg-[#3E4B37] text-[#F5F7F2] font-bold text-xs border-none cursor-pointer hover:bg-[#4C5B43] transition-colors rounded"
                   >
-                    Zavrieť
+                    {t.previewClose}
                   </button>
                 </div>
               </div>
@@ -1284,7 +1304,7 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                     onClick={() => setShowChangelogMockup(false)}
                     className="w-[100px] h-[30px] bg-[#3E4B37] text-[#F5F7F2] font-bold text-xs border-none cursor-pointer hover:bg-[#4C5B43] transition-colors rounded self-end shrink-0"
                   >
-                    Zavrieť
+                    {t.previewClose}
                   </button>
                 </div>
               </div>
@@ -1292,7 +1312,7 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
           </div>
           
           <div className="absolute bottom-8 right-10 text-[9px] text-[#3E4B37] max-w-[200px] text-right uppercase hidden md:block">
-            Návrh GUI inštalátora je generovaný automaticky podľa XAML šablóny Aegis.
+            {language === 'cz' ? 'Návrh GUI instalátoru je generován automaticky podle XAML šablony Aegis.' : 'Návrh GUI inštalátora je generovaný automaticky podľa XAML šablóny Aegis.'}
           </div>
 
           {/* Notification Toast */}
@@ -1308,12 +1328,12 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
           <div className="bg-[#131A11] border border-[#3E4B37] rounded-xl shadow-2xl overflow-hidden max-w-[800px] w-full flex flex-col">
             <div className="p-4 border-b border-[#3E4B37]/30 flex justify-between items-center bg-[#0D110C]">
-              <h3 className="text-[#F5F7F2] font-bold uppercase tracking-wider text-sm">Vystrihnúť Banner</h3>
+              <h3 className="text-[#F5F7F2] font-bold uppercase tracking-wider text-sm">{t.cropTitle}</h3>
               <button 
                 onClick={() => setCropModalOpen(false)}
                 className="text-[#919B82] hover:text-[#F5F7F2] transition-colors text-sm font-semibold uppercase tracking-wider"
               >
-                Zrušiť
+                {t.cropCancel}
               </button>
             </div>
             <div className="p-6 overflow-auto bg-[#090C08] flex justify-center max-h-[60vh]">
@@ -1334,7 +1354,7 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                 onClick={handleSaveCrop}
                 className="bg-[#3E4B37] text-[#F5F7F2] px-6 py-2 rounded-[6px] font-bold text-sm uppercase tracking-widest hover:bg-[#4d5c44] transition-colors cursor-pointer"
               >
-                Použiť výrez
+                {t.cropApply}
               </button>
             </div>
           </div>
