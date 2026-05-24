@@ -401,7 +401,9 @@ try {
     if (-not [string]::IsNullOrWhiteSpace($steamId)) {
         $regKeys = @(
             "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App $steamId",
-            "HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App $steamId"
+            "HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App $steamId",
+            "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App $steamId",
+            "HKCU:\\Software\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App $steamId"
         )
         foreach ($key in $regKeys) {
             if (Test-Path $key) {
