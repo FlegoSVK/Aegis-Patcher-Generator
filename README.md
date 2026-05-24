@@ -2,7 +2,6 @@
 
 ## Krátky popis
 Aegis Patcher Generator je webová aplikácia určená pre autorov a distribútorov slovenských a českých herných prekladov (a iných módov). Umožňuje jednoducho a rýchlo vygenerovať profesionálny a vizuálne lákavý inštalátor (patcher) bez potreby programovania. Užívateľ vyplní základné údaje o preklade, priloží inštalačné súbory a obrázok (banner) a aplikácia vygeneruje hotový ZIP balíček obsahujúci spustiteľný inštalátor v prostredí PowerShell (WPF GUI).
-<img width="1580" height="1217" alt="inst apka" src="https://github.com/user-attachments/assets/4280995f-9c41-4350-a32f-5c0547f6bc08" />
 
 ## Vlastnosti a funkcie programu
 

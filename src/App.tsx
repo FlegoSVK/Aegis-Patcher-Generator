@@ -399,6 +399,9 @@ try {
     # Auto-detect game path via Steam App ID
     $steamId = "${steamAppId.trim()}"
     if (-not [string]::IsNullOrWhiteSpace($steamId)) {
+        $foundPath = ""
+        
+        # 1. Try registry Uninstall keys direct path
         $regKeys = @(
             "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App $steamId",
             "HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App $steamId",
@@ -409,10 +412,67 @@ try {
             if (Test-Path $key) {
                 $installLoc = (Get-ItemProperty -Path $key -Name "InstallLocation" -ErrorAction SilentlyContinue).InstallLocation
                 if (-not [string]::IsNullOrWhiteSpace($installLoc) -and (Test-Path $installLoc)) {
-                    $PathTextBox.Text = $installLoc
+                    $foundPath = $installLoc
                     break
                 }
             }
+        }
+
+        # 2. If registry direct path not found or empty (common for many Steam games like Hollow Knight), query Steam library folders
+        if ([string]::IsNullOrWhiteSpace($foundPath)) {
+            $steamPaths = @()
+            
+            # Find Steam install path from Registry
+            $hcuSteam = (Get-ItemProperty -Path "HKCU:\\Software\\Valve\\Steam" -Name "SteamPath" -ErrorAction SilentlyContinue).SteamPath
+            if (-not [string]::IsNullOrWhiteSpace($hcuSteam)) { $steamPaths += $hcuSteam.Replace("/", "\\") }
+            
+            $hklmSteam = (Get-ItemProperty -Path "HKLM:\\SOFTWARE\\Valve\\Steam" -Name "InstallPath" -ErrorAction SilentlyContinue).InstallPath
+            if (-not [string]::IsNullOrWhiteSpace($hklmSteam)) { $steamPaths += $hklmSteam }
+            
+            $hklmSteamWow = (Get-ItemProperty -Path "HKLM:\\SOFTWARE\\WOW6432Node\\Valve\\Steam" -Name "InstallPath" -ErrorAction SilentlyContinue).InstallPath
+            if (-not [string]::IsNullOrWhiteSpace($hklmSteamWow)) { $steamPaths += $hklmSteamWow }
+
+            # Common default installation spots
+            $steamPaths += "C:\\Program Files (x86)\\Steam"
+            $steamPaths += "C:\\Program Files\\Steam"
+
+            # Unique non-empty valid directories
+            $steamPaths = $steamPaths | Select-Object -Unique | Where-Object { -not [string]::IsNullOrWhiteSpace($_) -and (Test-Path $_) }
+
+            foreach ($sp in $steamPaths) {
+                $vdfPath = Join-Path $sp "steamapps\\libraryfolders.vdf"
+                if (Test-Path $vdfPath) {
+                    $vdfContent = Get-Content -Path $vdfPath -Raw -ErrorAction SilentlyContinue
+                    if ($vdfContent) {
+                        # Extract all "path" lines e.g. "path" "D:\\SteamLibrary"
+                        $matches = [regex]::Matches($vdfContent, '"path"\\s+"([^"]+)"')
+                        foreach ($m in $matches) {
+                            $libPath = $m.Groups[1].Value.Replace("\\\\", "\\")
+                            if (Test-Path $libPath) {
+                                # Check if appmanifest file exists for this game ID
+                                $acfPath = Join-Path $libPath "steamapps\\appmanifest_$steamId.acf"
+                                if (Test-Path $acfPath) {
+                                    $acfContent = Get-Content -Path $acfPath -Raw -ErrorAction SilentlyContinue
+                                    if ($acfContent -and ($acfContent -match '"installdir"\\s+"([^"]+)"')) {
+                                        $installDirName = $Matches[1]
+                                        $expectedGamePath = Join-Path $libPath "steamapps\\common\\$installDirName"
+                                        if (Test-Path $expectedGamePath) {
+                                            $foundPath = $expectedGamePath
+                                            break
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                if (-not [string]::IsNullOrWhiteSpace($foundPath)) { break }
+            }
+        }
+
+        # Apply found path if valid
+        if (-not [string]::IsNullOrWhiteSpace($foundPath) -and (Test-Path $foundPath)) {
+            $PathTextBox.Text = $foundPath
         }
     }
     ` : ''}
