@@ -134,7 +134,25 @@ export const translations = {
     scriptUninstalling: 'Odinštalujem...',
     scriptRestoring: 'Obnovujem:',
     scriptUninstallSuccess: 'Odinštalácia bola úspešná!',
-    scriptBackupMissing: 'Záloha neexistuje, pôvodné súbory nebolo možné obnoviť.'
+    scriptBackupMissing: 'Záloha neexistuje, pôvodné súbory nebolo možné obnoviť.',
+    
+    // Readme text
+    readmeSupportTitle: '--- PODPORA PREKLADU ---',
+    readmeSupportText: 'Ak chcete podporiť tvorbu tohto prekladu alebo iné komunitné preklady, môžete využiť priložený QR kód v inštalátore (tlačidlo Podpora) alebo v adresári Assets/qrcode.jpg. Ďakujeme!',
+    readmeChangelogTitle: '--- NOVINKY V TEJTO VERZII ---',
+    readmeInstructionTitle: '--- NÁVOD NA INŠTALÁCIU ---',
+    readmeInstStep1: '1. Rozbaľte (Extrahujte) celý obsah stiahnutého ZIP archívu do prázdnej zložky vo vašom PC.',
+    readmeInstStep1Desc: '   (Nerozbaľujte a nespúšťajte inštalátor priamo v archíve!)',
+    readmeInstStep2: '2. Spustite súbor "Spustit_Preklad.bat".',
+    readmeInstStep3: '3. Inštalátor sa pokúsi automaticky nájsť cestu k hre. Ak sa mu to nepodarí, kliknite na tlačidlo "Prehľadávať..." a vyberte hlavný priečinok s hrou.',
+    readmeInstStep4: '4. Po správnom výbere cesty sa odomkne tlačidlo "Inštalovať". Kliknite naň.',
+    readmeInstStep5: '5. Inštalátor automaticky zazálohuje pôvodné súbory (ak ich prepisuje) a skopíruje preklad.',
+    readmeUninstallTitle: '--- ODINŠTALÁCIA ---',
+    readmeUninstStep1: '1. Opäť spustite "Spustit_Preklad.bat" (inštalátor).',
+    readmeUninstStep2: '2. Uistite sa, že máte vybratú správnu cestu k hre.',
+    readmeUninstStep3: '3. Objaví sa tlačidlo "Odinštalovať". Kliknite naň.',
+    readmeUninstStep4: '4. Inštalátor zmaže preložené súbory a obnoví originálne herné súbory zo zálohy (ak sa prepisovali).',
+    readmeEnjoy: 'Užite si preklad!'
   },
   cz: {
     // Header & Meta
@@ -269,6 +287,24 @@ export const translations = {
     scriptUninstalling: 'Odinstalovávám...',
     scriptRestoring: 'Obnovuji:',
     scriptUninstallSuccess: 'Odinstalace byla úspěšná!',
-    scriptBackupMissing: 'Záloha neexistuje, původní soubory nebylo možné obnovit.'
+    scriptBackupMissing: 'Záloha neexistuje, původní soubory nebylo možné obnovit.',
+    
+    // Readme text
+    readmeSupportTitle: '--- PODPORA PŘEKLADU ---',
+    readmeSupportText: 'Pokud chcete podpořit tvorbu tohoto překladu nebo jiné komunitní překlady, můžete využít přiložený QR kód v instalátoru (tlačítko Podpora) nebo v adresáři Assets/qrcode.jpg. Děkujeme!',
+    readmeChangelogTitle: '--- NOVINKY V TÉTO VERZI ---',
+    readmeInstructionTitle: '--- NÁVOD K INSTALACI ---',
+    readmeInstStep1: '1. Rozbalte (Extrahujte) celý obsah staženého ZIP archivu do prázdné složky ve vašem PC.',
+    readmeInstStep1Desc: '   (Nerozbalujte a nespouštějte instalátor přímo v archivu!)',
+    readmeInstStep2: '2. Spusťte soubor "Spustit_Preklad.bat".',
+    readmeInstStep3: '3. Instalátor se pokusí automaticky najít cestu k hře. Pokud se mu to nepodaří, klikněte na tlačítko "Procházet..." a vyberte hlavní složku s hrou.',
+    readmeInstStep4: '4. Po správném výběru cesty se odemkne tlačítko "Instalovat". Klikněte na něj.',
+    readmeInstStep5: '5. Instalátor automaticky zazálohuje původní soubory (pokud je přepisuje) a zkopíruje překlad.',
+    readmeUninstallTitle: '--- ODINSTALACE ---',
+    readmeUninstStep1: '1. Opět spusťte "Spustit_Preklad.bat" (instalátor).',
+    readmeUninstStep2: '2. Ujistěte se, že máte vybranou správnou cestu k hře.',
+    readmeUninstStep3: '3. Objeví se tlačítko "Odinstalovat". Klikněte na něj.',
+    readmeUninstStep4: '4. Instalátor smaže přeložené soubory a obnoví originální herní soubory ze zálohy (pokud se přepisovaly).',
+    readmeEnjoy: 'Užijte si překlad!'
   }
 };

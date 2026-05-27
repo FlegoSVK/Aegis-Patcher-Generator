@@ -657,17 +657,18 @@ try {
 
     function Hide-Overlay($ov) {
         if (-not $ov) { return }
+        $script:hideOverlayElem = $ov
         $anim = New-Object System.Windows.Media.Animation.DoubleAnimation
         $anim.To = 0.0
         $anim.Duration = New-Object System.Windows.Duration([timespan]::FromMilliseconds(200))
         $ov.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $anim)
-        $timer = New-Object System.Windows.Threading.DispatcherTimer
-        $timer.Interval = [timespan]::FromMilliseconds(250)
-        $timer.Add_Tick({
-            $ov.Visibility = "Collapsed"
-            $timer.Stop()
+        $script:hideOverlayTimer = New-Object System.Windows.Threading.DispatcherTimer
+        $script:hideOverlayTimer.Interval = [timespan]::FromMilliseconds(250)
+        $script:hideOverlayTimer.Add_Tick({
+            if ($script:hideOverlayElem) { $script:hideOverlayElem.Visibility = "Collapsed" }
+            if ($script:hideOverlayTimer) { $script:hideOverlayTimer.Stop() }
         })
-        $timer.Start()
+        $script:hideOverlayTimer.Start()
     }
 
     if ($SupportLink) {
@@ -782,6 +783,13 @@ try {
     ` : ''}
 
     function Update-UIState {
+        $InstallButton.Opacity = 1.0
+        $InstallButton.IsHitTestVisible = $true
+        $InstallButton.Focusable = $true
+        $UninstallButton.Opacity = 1.0
+        $UninstallButton.IsHitTestVisible = $true
+        $UninstallButton.Focusable = $true
+
         $selectedPath = $PathTextBox.Text
         if (-not [string]::IsNullOrWhiteSpace($selectedPath) -and (Test-Path $selectedPath)) {
             ${steamAppId ? 'Update-WindowIcon -gamePath $selectedPath' : ''}
@@ -808,65 +816,75 @@ try {
         $manifestPath = Join-Path $selectedPath "Aegis_Translation_Manifest.json"
         $backupDir = Join-Path $selectedPath "Aegis_Translation_Backup"
         
-        $UninstallButton.IsEnabled = $false
-        $InstallButton.IsEnabled = $false
+        $UninstallButton.Opacity = 0.5
+        $UninstallButton.IsHitTestVisible = $false
+        $UninstallButton.Focusable = $false
+        $InstallButton.Opacity = 0.5
+        $InstallButton.IsHitTestVisible = $false
+        $InstallButton.Focusable = $false
         $BrowseButton.Visibility = "Collapsed"
         $InstallProgress.IsIndeterminate = $true
         $StatusText.Text = "${t.scriptUninstalling}"
         if ($ProgressPercent) { $ProgressPercent.Text = "${t.scriptUninstalling}" }
         
         try {
-            if (-not (Test-Path $backupDir)) {
-                $StatusText.Text = "${t.scriptBackupMissing}"
-                if ($ProgressPercent) { $ProgressPercent.Text = "${t.scriptFailTitle}" }
-                $UninstallButton.IsEnabled = $false
-                $InstallButton.IsEnabled = $true
-                $BrowseButton.Visibility = "Visible"
-                $InstallProgress.IsIndeterminate = $false
-                return
-            }
-
-            $manifest = Get-Content -Path $manifestPath | ConvertFrom-Json
+            $manifest = Get-Content -Path $manifestPath -ErrorAction Stop | ConvertFrom-Json
             $totalFiles = $manifest.files.Count
             $currentFile = 0
 
+            $backupExists = Test-Path $backupDir
+            $backupCount = 0
+            $backupFiles = $null
+
+            if ($backupExists) {
+                $backupFiles = Get-ChildItem -Path $backupDir -Recurse -File -ErrorAction SilentlyContinue
+                if ($null -ne $backupFiles) {
+                    if ($backupFiles -is [array]) { $backupCount = $backupFiles.Count } Else { $backupCount = 1 }
+                }
+            }
+
             # Delete installed files that have no backups (they were new)
             $InstallProgress.IsIndeterminate = $false
-            $InstallProgress.Maximum = ($totalFiles * 2) - 1
+            $InstallProgress.Maximum = $totalFiles + $backupCount
             $InstallProgress.Value = 0
 
-            foreach ($file in $manifest.files) {
-                $destPath = Join-Path $selectedPath $file.path
-                if (Test-Path $destPath) {
-                    $StatusText.Text = "${t.scriptUninstalling} " + $file.name
-                    Remove-Item -Path $destPath -Force -ErrorAction SilentlyContinue
+            if ($totalFiles -gt 0) {
+                foreach ($file in $manifest.files) {
+                    $destPath = Join-Path $selectedPath $file.path
+                    if (Test-Path $destPath) {
+                        $StatusText.Text = "${t.scriptUninstalling} " + $file.name
+                        Remove-Item -Path $destPath -Force -ErrorAction SilentlyContinue
+                    }
+                    $currentFile++
+                    $percent = if ($InstallProgress.Maximum -gt 0) { [math]::Truncate(($currentFile / $InstallProgress.Maximum) * 100) } else { 100 }
+                    $InstallProgress.Value = $currentFile
+                    if ($ProgressPercent) { $ProgressPercent.Text = "$percent%" }
+                    try { [System.Windows.Forms.Application]::DoEvents() } catch { }
                 }
-                $currentFile++
-                $percent = [math]::Truncate(($currentFile / $InstallProgress.Maximum) * 100)
-                $InstallProgress.Value = $currentFile
-                if ($ProgressPercent) { $ProgressPercent.Text = "$percent%" }
-                try { [System.Windows.Forms.Application]::DoEvents() } catch { }
             }
 
             # Restore backups
-            $backupFiles = Get-ChildItem -Path $backupDir -Recurse -File
-            foreach ($item in $backupFiles) {
-                $relativePath = $item.FullName.Substring($backupDir.Length + 1)
-                $destPath = Join-Path $selectedPath $relativePath
-                $destDir = Split-Path $destPath
-                if (!(Test-Path $destDir)) { New-Item -ItemType Directory -Force -Path $destDir | Out-Null }
-                
-                $StatusText.Text = "${t.scriptRestoring} " + $item.Name
-                Copy-Item -Path $item.FullName -Destination $destPath -Force
-                $currentFile++
-                $percent = [math]::Truncate(($currentFile / $InstallProgress.Maximum) * 100)
-                $InstallProgress.Value = $currentFile
-                if ($ProgressPercent) { $ProgressPercent.Text = "$percent%" }
-                try { [System.Windows.Forms.Application]::DoEvents() } catch { }
+            if ($backupExists -and $backupCount -gt 0) {
+                foreach ($item in $backupFiles) {
+                    $relativePath = $item.FullName.Substring($backupDir.Length + 1)
+                    $destPath = Join-Path $selectedPath $relativePath
+                    $destDir = Split-Path $destPath
+                    if (-not (Test-Path $destDir)) { New-Item -ItemType Directory -Force -Path $destDir | Out-Null }
+                    
+                    $StatusText.Text = "${t.scriptRestoring} " + $item.Name
+                    Copy-Item -Path $item.FullName -Destination $destPath -Force
+                    $currentFile++
+                    $percent = if ($InstallProgress.Maximum -gt 0) { [math]::Truncate(($currentFile / $InstallProgress.Maximum) * 100) } else { 100 }
+                    $InstallProgress.Value = $currentFile
+                    if ($ProgressPercent) { $ProgressPercent.Text = "$percent%" }
+                    try { [System.Windows.Forms.Application]::DoEvents() } catch { }
+                }
             }
 
             # Cleanup
-            Remove-Item -Path $backupDir -Recurse -Force -ErrorAction SilentlyContinue
+            if ($backupExists) {
+                Remove-Item -Path $backupDir -Recurse -Force -ErrorAction SilentlyContinue
+            }
             Remove-Item -Path $manifestPath -Force -ErrorAction SilentlyContinue
 
             $InstallProgress.Value = $InstallProgress.Maximum
@@ -874,7 +892,9 @@ try {
             if ($ProgressPercent) { $ProgressPercent.Text = "100%" }
             $UninstallButton.Visibility = "Collapsed"
             $InstallButton.Content = "${t.scriptDone}"
-            $InstallButton.IsEnabled = $true
+            $InstallButton.Opacity = 1.0
+            $InstallButton.IsHitTestVisible = $true
+            $InstallButton.Focusable = $true
         } catch {
             $InstallProgress.IsIndeterminate = $false
             $StatusText.Text = "${t.scriptFailTitle}"
@@ -883,10 +903,13 @@ try {
             
             # Reset UI completely by calling routine
             Update-UIState
-            $UninstallButton.IsEnabled = $true
-            $InstallButton.IsEnabled = $true
+            $UninstallButton.Opacity = 1.0
+            $UninstallButton.IsHitTestVisible = $true
+            $UninstallButton.Focusable = $true
+            $InstallButton.Opacity = 1.0
+            $InstallButton.IsHitTestVisible = $true
+            $InstallButton.Focusable = $true
             $BrowseButton.Visibility = "Visible"
-            $BrowseButton.IsEnabled = $true
         }
     })
 
@@ -935,8 +958,12 @@ try {
             try { New-Item -ItemType Directory -Force -Path $targetInstallPath | Out-Null } catch { }
         }
         
-        $UninstallButton.IsEnabled = $false
-        $InstallButton.IsEnabled = $false
+        $UninstallButton.Opacity = 0.5
+        $UninstallButton.IsHitTestVisible = $false
+        $UninstallButton.Focusable = $false
+        $InstallButton.Opacity = 0.5
+        $InstallButton.IsHitTestVisible = $false
+        $InstallButton.Focusable = $false
         $BrowseButton.Visibility = "Collapsed"
         $InstallProgress.IsIndeterminate = $true
         $StatusText.Text = "${t.scriptInstalling}"
@@ -1052,15 +1079,21 @@ try {
             $StatusText.Text = "${t.scriptSuccess}"
             if ($ProgressPercent) { $ProgressPercent.Text = "100%" }
             $InstallButton.Content = "${t.scriptDone}"
-            $InstallButton.IsEnabled = $true
+            $InstallButton.Opacity = 1.0
+            $InstallButton.IsHitTestVisible = $true
+            $InstallButton.Focusable = $true
         } catch {
             $InstallProgress.IsIndeterminate = $false
             $StatusText.Text = "${t.scriptFailTitle}"
             if ($ProgressPercent) { $ProgressPercent.Text = "${t.scriptFailTitle}" }
             [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, "${t.scriptFailTitle}", 0, 16)
             Update-UIState
-            $InstallButton.IsEnabled = $true
-            $UninstallButton.IsEnabled = $true
+            $InstallButton.Opacity = 1.0
+            $InstallButton.IsHitTestVisible = $true
+            $InstallButton.Focusable = $true
+            $UninstallButton.Opacity = 1.0
+            $UninstallButton.IsHitTestVisible = $true
+            $UninstallButton.Focusable = $true
             $BrowseButton.Visibility = "Visible"
             $BrowseButton.IsEnabled = $true
         }
@@ -1083,6 +1116,44 @@ if not exist "%~dp0Install.ps1" (
 )
 echo ${t.scriptBatchEcho}
 powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Install.ps1"`;
+  };
+
+  const generateReadmeText = () => {
+    // Generate README content based on selected language
+    let text = `${(t as any).scriptInstallerTitle.replace('{name}', gameName)}\n`;
+    text += `=================================================\n\n`;
+    text += `${t.scriptAuthor} ${author}\n`;
+    if (authorLink) text += `${t.authorLinkInput}: ${authorLink}\n`;
+    text += `${t.transVersionInput}: ${translationVersion}\n`;
+    text += `${t.gameVersionInput}: ${gameVersion}\n`;
+    if (translationLink) text += `${t.transLinkInput}: ${translationLink}\n`;
+
+    if (qrCodeFile) {
+        text += `\n${(t as any).readmeSupportTitle}\n`;
+        if (supportText) text += `${supportText}\n`;
+        text += `${(t as any).readmeSupportText}\n`;
+    }
+
+    if (changelog.trim()) {
+        text += `\n${(t as any).readmeChangelogTitle}\n`;
+        text += `${changelog}\n`;
+    }
+
+    text += `\n${(t as any).readmeInstructionTitle}\n`;
+    text += `${(t as any).readmeInstStep1}\n`;
+    text += `${(t as any).readmeInstStep1Desc}\n`;
+    text += `${(t as any).readmeInstStep2}\n`;
+    text += `${(t as any).readmeInstStep3}\n`;
+    text += `${(t as any).readmeInstStep4}\n`;
+    text += `${(t as any).readmeInstStep5}\n`;
+    text += `\n${(t as any).readmeUninstallTitle}\n`;
+    text += `${(t as any).readmeUninstStep1}\n`;
+    text += `${(t as any).readmeUninstStep2}\n`;
+    text += `${(t as any).readmeUninstStep3}\n`;
+    text += `${(t as any).readmeUninstStep4}\n`;
+    text += `\n${(t as any).readmeEnjoy}\n`;
+    
+    return text;
   };
 
   const handleGenerate = async () => {
@@ -1171,6 +1242,10 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
       
       // Batch launcher
       zip.file("Spustit_Preklad.bat", generateBatchScript());
+
+      // Readme instructions
+      const readmeFileName = language === 'sk' ? "Navod_na_instalaciu.txt" : "Navod_k_instalaci.txt";
+      zip.file(readmeFileName, "\uFEFF" + generateReadmeText());
 
       // Assets folder
       const assetsFolder = zip.folder("Assets");
