@@ -79,6 +79,8 @@ export const translations = {
     addFilesBtn: '+ Súbory',
     addFolderBtn: '+ Priečinok',
     noFilesFound: 'Žiadne súbory. Pridajte prekladové súbory.',
+    dragAndDropZone: 'Sem pretiahnite súbory alebo priečinok, prípadne kliknite pre výber',
+    dragAndDropActive: 'Pustite súbory sem...',
     
     // Generator Details
     generateBtn: 'Vygenerovať ZIP Balík',
@@ -207,6 +209,8 @@ export const translations = {
     addFilesBtn: '+ Soubory',
     addFolderBtn: '+ Složka',
     noFilesFound: 'Žádné soubory. Přidejte soubory překladu.',
+    dragAndDropZone: 'Sem přetáhněte soubory nebo složku, případně klikněte pro výběr',
+    dragAndDropActive: 'Pusťte soubory sem...',
     
     // Generator Details
     generateBtn: 'Vygenerovat ZIP Balíček',

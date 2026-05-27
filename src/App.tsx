@@ -47,27 +47,128 @@ export interface GameSettings {
   textColorSecondary?: string;
 }
 
+const getAutosaveValue = (key: string, defaultValue: any) => {
+  if (typeof window === 'undefined') return defaultValue;
+  try {
+    const autosave = localStorage.getItem('aegis_installer_autosave');
+    if (autosave) {
+      const data = JSON.parse(autosave);
+      if (data[key] !== undefined) {
+        return data[key];
+      }
+    }
+  } catch (e) {
+    console.error('Error reading autosaved value', e);
+  }
+  return defaultValue;
+};
+
 export default function App() {
   const [language, setLanguage] = useState<Language>('sk');
   const t = translations[language];
   
-  const [gameName, setGameName] = useState('Nová Hra');
-  const [author, setAuthor] = useState('Flego');
-  const [authorLink, setAuthorLink] = useState('https://komunitni-preklady.org/tym/flego');
-  const [validationPath, setValidationPath] = useState('GameName');
-  const [steamAppId, setSteamAppId] = useState('');
-  const [installRelativePath, setInstallRelativePath] = useState('');
-  const [translationVersion, setTranslationVersion] = useState('v1.0.0');
-  const [changelog, setChangelog] = useState('');
-  const [gameVersion, setGameVersion] = useState('1.0');
-  const [translationLink, setTranslationLink] = useState('https://komunitni-preklady.org/');
-  const [supportText, setSupportText] = useState('Investuj do slovenčiny v hrách');
-  const [textColorMain, setTextColorMain] = useState('#F5F7F2');
-  const [textColorSecondary, setTextColorSecondary] = useState('#919B82');
+  const [gameName, setGameName] = useState(() => getAutosaveValue('gameName', 'Nová Hra'));
+  const [author, setAuthor] = useState(() => getAutosaveValue('author', 'Flego'));
+  const [authorLink, setAuthorLink] = useState(() => getAutosaveValue('authorLink', 'https://komunitni-preklady.org/tym/flego'));
+  const [validationPath, setValidationPath] = useState(() => getAutosaveValue('validationPath', 'GameName'));
+  const [steamAppId, setSteamAppId] = useState(() => getAutosaveValue('steamAppId', ''));
+  const [installRelativePath, setInstallRelativePath] = useState(() => getAutosaveValue('installRelativePath', ''));
+  const [translationVersion, setTranslationVersion] = useState(() => getAutosaveValue('translationVersion', 'v1.0.0'));
+  const [changelog, setChangelog] = useState(() => getAutosaveValue('changelog', ''));
+  const [gameVersion, setGameVersion] = useState(() => getAutosaveValue('gameVersion', '1.0'));
+  const [translationLink, setTranslationLink] = useState(() => getAutosaveValue('translationLink', 'https://komunitni-preklady.org/'));
+  const [supportText, setSupportText] = useState(() => getAutosaveValue('supportText', 'Investuj do slovenčiny v hrách'));
+  const [textColorMain, setTextColorMain] = useState(() => getAutosaveValue('textColorMain', '#F5F7F2'));
+  const [textColorSecondary, setTextColorSecondary] = useState(() => getAutosaveValue('textColorSecondary', '#919B82'));
   const [bannerPreview, setBannerPreview] = useState<string | null>(null);
   const [bannerFile, setBannerFile] = useState<File | null>(null);
-  const [fullWindowBackground, setFullWindowBackground] = useState(false);
+  const [fullWindowBackground, setFullWindowBackground] = useState(() => getAutosaveValue('fullWindowBackground', true));
   const [translationFiles, setTranslationFiles] = useState<{file: File, path: string}[]>([]);
+  const [isDragActive, setIsDragActive] = useState(false);
+
+  const traverseFileTree = (entry: any, path: string = ""): Promise<{file: File, path: string}[]> => {
+    return new Promise((resolve) => {
+      if (entry.isFile) {
+        entry.file((file: File) => {
+          resolve([{ file, path: path + file.name }]);
+        });
+      } else if (entry.isDirectory) {
+        const dirReader = entry.createReader();
+        const readAllEntries = (): Promise<any[]> => {
+          return new Promise((res) => {
+            const allEntries: any[] = [];
+            const readEntries = () => {
+              dirReader.readEntries((entries: any[]) => {
+                if (entries.length === 0) {
+                  res(allEntries);
+                } else {
+                  allEntries.push(...entries);
+                  readEntries();
+                }
+              }, () => res(allEntries));
+            };
+            readEntries();
+          });
+        };
+        
+        readAllEntries().then((entries) => {
+          const promises = entries.map((e) => traverseFileTree(e, path + entry.name + "/"));
+          Promise.all(promises).then((results) => {
+            resolve(results.flat());
+          });
+        });
+      } else {
+        resolve([]);
+      }
+    });
+  };
+
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setIsDragActive(true);
+    } else if (e.type === "dragleave") {
+      setIsDragActive(false);
+    }
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragActive(false);
+
+    if (e.dataTransfer.items) {
+      const promises: Promise<{file: File, path: string}[]>[] = [];
+      for (let i = 0; i < e.dataTransfer.items.length; i++) {
+        const item = e.dataTransfer.items[i];
+        if (item.kind === 'file') {
+          if (typeof item.webkitGetAsEntry === 'function') {
+            const entry = item.webkitGetAsEntry();
+            if (entry) {
+              promises.push(traverseFileTree(entry));
+            }
+          } else {
+            const file = item.getAsFile();
+            if (file) {
+              promises.push(Promise.resolve([{ file, path: file.name }]));
+            }
+          }
+        }
+      }
+      const results = await Promise.all(promises);
+      const droppedFiles = results.flat();
+      if (droppedFiles.length > 0) {
+        setTranslationFiles(prev => [...prev, ...droppedFiles]);
+      }
+    } else if (e.dataTransfer.files) {
+      const newFiles = Array.from(e.dataTransfer.files).map((f: File) => ({
+        file: f,
+        path: f.name
+      }));
+      setTranslationFiles(prev => [...prev, ...newFiles]);
+    }
+  };
   const [isGenerating, setIsGenerating] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
 
@@ -93,6 +194,41 @@ export default function App() {
       } catch (e) { }
     }
   }, []);
+
+  useEffect(() => {
+    const data = {
+      gameName,
+      author,
+      authorLink,
+      validationPath,
+      steamAppId,
+      installRelativePath,
+      translationVersion,
+      changelog,
+      gameVersion,
+      translationLink,
+      supportText,
+      textColorMain,
+      textColorSecondary,
+      fullWindowBackground,
+    };
+    localStorage.setItem('aegis_installer_autosave', JSON.stringify(data));
+  }, [
+    gameName,
+    author,
+    authorLink,
+    validationPath,
+    steamAppId,
+    installRelativePath,
+    translationVersion,
+    changelog,
+    gameVersion,
+    translationLink,
+    supportText,
+    textColorMain,
+    textColorSecondary,
+    fullWindowBackground,
+  ]);
 
   const [cropModalOpen, setCropModalOpen] = useState(false);
   const [cropImgSrc, setCropImgSrc] = useState('');
@@ -697,6 +833,10 @@ try {
     })
 
     $InstallButton.Add_Click({
+        if ($InstallButton.Content -eq "${t.scriptDone}") {
+            $Form.Close()
+            return
+        }
         $selectedPath = $PathTextBox.Text
         if ([string]::IsNullOrWhiteSpace($selectedPath) -or !(Test-Path $selectedPath)) {
             [System.Windows.Forms.MessageBox]::Show("${t.scriptErrInvalidPath}", "${t.scriptFailTitle}", 0, 16)
@@ -1293,7 +1433,7 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                 <span className="text-[10px] lg:text-[11px] text-[#919B82] group-hover:text-[#F5F7F2] transition-colors">{t.fullWindowImageLabel}</span>
               </label>
             </div>
-            <div className="flex gap-2 mb-3">
+            <div className="space-y-3 mb-3">
               <input 
                 type="file" 
                 multiple
@@ -1309,15 +1449,34 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                 ref={folderInputRef} 
                 onChange={handleFolderChange}
               />
-              <div className="flex flex-col sm:flex-row gap-2 w-full">
+              
+              <div 
+                onDragEnter={handleDrag}
+                onDragOver={handleDrag}
+                onDragLeave={handleDrag}
+                onDrop={handleDrop}
+                onClick={() => filesInputRef.current?.click()}
+                className={`border border-dashed rounded-md p-5 text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1.5 ${
+                  isDragActive 
+                    ? "border-[#919B82] bg-[#3E4B37]/20 text-[#F5F7F2]" 
+                    : "border-[#3E4B37] bg-[#131A11]/40 text-[#919B82] hover:bg-[#3E4B37]/10 hover:border-[#919B82]"
+                }`}
+              >
+                <FolderOpen className="w-6 h-6 opacity-75 text-[#919B82]" />
+                <span className="text-[11px] font-semibold tracking-wide">
+                  {isDragActive ? t.dragAndDropActive : t.dragAndDropZone}
+                </span>
+              </div>
+
+              <div className="flex gap-2">
                 <button 
-                  onClick={() => filesInputRef.current?.click()}
+                  onClick={(e) => { e.stopPropagation(); filesInputRef.current?.click(); }}
                   className="flex-1 bg-transparent border border-[#3E4B37] text-[#919B82] rounded-[4px] py-1.5 text-[10px] lg:text-[11px] font-semibold cursor-pointer hover:bg-[#3E4B37]/20 transition-colors truncate px-2"
                 >
                   {t.addFilesBtn}
                 </button>
                 <button 
-                  onClick={() => folderInputRef.current?.click()}
+                  onClick={(e) => { e.stopPropagation(); folderInputRef.current?.click(); }}
                   className="flex-1 bg-transparent border border-[#3E4B37] text-[#919B82] rounded-[4px] py-1.5 text-[10px] lg:text-[11px] font-semibold cursor-pointer hover:bg-[#3E4B37]/20 transition-colors truncate px-2"
                 >
                   {t.addFolderBtn}
