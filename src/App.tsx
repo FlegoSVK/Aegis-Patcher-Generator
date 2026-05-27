@@ -10,8 +10,10 @@ import {
   CheckCircle2, 
   Download,
   FolderOpen,
+  ChevronDown,
   X
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import ReactCrop, { type Crop, PixelCrop, centerCrop, makeAspectCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 import './index.css';
@@ -197,6 +199,8 @@ export default function App() {
   
   const [history, setHistory] = useState<GameSettings[]>([]);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [isCoreInfoExpanded, setIsCoreInfoExpanded] = useState(true);
+  const [isMultimediaExpanded, setIsMultimediaExpanded] = useState(true);
 
   useEffect(() => {
     const saved = localStorage.getItem('gameSettingsHistory');
@@ -382,6 +386,7 @@ export default function App() {
     return `param()
 Add-Type -AssemblyName PresentationFramework
 Add-Type -AssemblyName System.Windows.Forms
+${steamAppId ? 'Add-Type -AssemblyName System.Drawing' : ''}
 
 $ErrorActionPreference = "Stop"
 
@@ -431,7 +436,10 @@ try {
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0">
-                    <TextBlock Text="${scriptInstallerTitle}" FontSize="18" FontWeight="Light" Foreground="${eColorMain}" Margin="0,0,0,4" TextWrapping="Wrap"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                        <Image Name="WindowIconImage" Width="22" Height="22" Margin="0,0,8,0" VerticalAlignment="Center" Visibility="Collapsed"/>
+                        <TextBlock Text="${scriptInstallerTitle}" FontSize="18" FontWeight="Light" Foreground="${eColorMain}" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                    </StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,2">
                         <TextBlock Text="${t.scriptAuthor} " FontSize="12" Foreground="${eColorSecondary}"/>
                         <TextBlock Name="AuthorLink" Text="${eAuthor}" FontSize="12" Foreground="${eColorMain}" TextDecorations="Underline" Cursor="Hand"/>
@@ -637,12 +645,35 @@ try {
         if ($SupportLink) { $SupportLink.Visibility = "Collapsed" }
     }
 
+    function Show-Overlay($ov) {
+        if (-not $ov) { return }
+        $ov.Opacity = 0
+        $ov.Visibility = "Visible"
+        $anim = New-Object System.Windows.Media.Animation.DoubleAnimation
+        $anim.To = 1.0
+        $anim.Duration = New-Object System.Windows.Duration([timespan]::FromMilliseconds(250))
+        $ov.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $anim)
+    }
+
+    function Hide-Overlay($ov) {
+        if (-not $ov) { return }
+        $anim = New-Object System.Windows.Media.Animation.DoubleAnimation
+        $anim.To = 0.0
+        $anim.Duration = New-Object System.Windows.Duration([timespan]::FromMilliseconds(200))
+        $ov.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $anim)
+        $timer = New-Object System.Windows.Threading.DispatcherTimer
+        $timer.Interval = [timespan]::FromMilliseconds(250)
+        $timer.Add_Tick({
+            $ov.Visibility = "Collapsed"
+            $timer.Stop()
+        })
+        $timer.Start()
+    }
+
     if ($SupportLink) {
         $SupportLink.Add_MouseLeftButtonDown({
             param($sender, $e)
-            if ($QrOverlay) {
-                $QrOverlay.Visibility = "Visible"
-            }
+            Show-Overlay $QrOverlay
         })
         $SupportLink.Add_MouseEnter({
             $SupportLink.Foreground = "${eColorSecondary}"
@@ -654,9 +685,7 @@ try {
     
     if ($CloseQrButton) {
         $CloseQrButton.Add_Click({
-            if ($QrOverlay) {
-                $QrOverlay.Visibility = "Collapsed"
-            }
+            Hide-Overlay $QrOverlay
         })
     }
 
@@ -665,9 +694,7 @@ try {
     } elseif ($ChangelogLink) {
         $ChangelogLink.Add_MouseLeftButtonDown({
             param($sender, $e)
-            if ($ChangelogOverlay) {
-                $ChangelogOverlay.Visibility = "Visible"
-            }
+            Show-Overlay $ChangelogOverlay
         })
         $ChangelogLink.Add_MouseEnter({
             $ChangelogLink.Foreground = "${eColorSecondary}"
@@ -679,9 +706,7 @@ try {
 
     if ($CloseChangelogButton) {
         $CloseChangelogButton.Add_Click({
-            if ($ChangelogOverlay) {
-                $ChangelogOverlay.Visibility = "Collapsed"
-            }
+            Hide-Overlay $ChangelogOverlay
         })
     }
 
@@ -733,9 +758,33 @@ try {
     $CloseButtonTop.Add_Click({ $Form.Close() })
     $CloseButton.Add_Click({ $Form.Close() })
 
+    ${steamAppId ? `
+    function Update-WindowIcon {
+        param($gamePath)
+        $AppExePath = Join-Path $gamePath '${psValidationPath}'
+        if ((Test-Path $AppExePath) -and $AppExePath.EndsWith(".exe", [System.StringComparison]::OrdinalIgnoreCase)) {
+            try {
+                $icon = [System.Drawing.Icon]::ExtractAssociatedIcon($AppExePath)
+                $imageSource = [System.Windows.Interop.Imaging]::CreateBitmapSourceFromHIcon(
+                    $icon.Handle,
+                    [System.Windows.Int32Rect]::Empty,
+                    [System.Windows.Media.Imaging.BitmapSizeOptions]::FromEmptyOptions()
+                )
+                $Form.Icon = $imageSource
+                $WindowIconImage = $Form.FindName("WindowIconImage")
+                if ($WindowIconImage) {
+                    $WindowIconImage.Source = $imageSource
+                    $WindowIconImage.Visibility = "Visible"
+                }
+            } catch { }
+        }
+    }
+    ` : ''}
+
     function Update-UIState {
         $selectedPath = $PathTextBox.Text
         if (-not [string]::IsNullOrWhiteSpace($selectedPath) -and (Test-Path $selectedPath)) {
+            ${steamAppId ? 'Update-WindowIcon -gamePath $selectedPath' : ''}
             $manifestPath = Join-Path $selectedPath "Aegis_Translation_Manifest.json"
             if (Test-Path $manifestPath) {
                 $InstallButton.Content = "${t.scriptUpdate}"
@@ -1279,9 +1328,29 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
         {/* LEFT: Controls Panel */}
         <aside className="border-b lg:border-b-0 lg:border-r border-[#3E4B37]/20 flex flex-col bg-[#0D110C] z-10 lg:overflow-hidden min-h-[600px] lg:min-h-0">
           <div className="flex-1 overflow-y-auto px-5 py-4 lg:px-6 lg:py-5 flex flex-col gap-5 custom-scrollbar">
-            <section>
-            <h2 className="text-[11px] font-bold text-[#919B82] uppercase mb-3 tracking-wider">{t.coreInfoSection}</h2>
-            <div className="space-y-3">
+            <section className="bg-[#131A11] border border-[#3E4B37]/30 rounded-md shrink-0 focus-within:ring-1 focus-within:ring-[#3E4B37]/50">
+              <button 
+                onClick={() => setIsCoreInfoExpanded(!isCoreInfoExpanded)}
+                className="w-full px-4 py-3 flex items-center justify-between text-[11px] font-bold text-[#919B82] hover:text-[#F5F7F2] hover:bg-[#3E4B37]/10 uppercase tracking-wider transition-colors cursor-pointer"
+              >
+                <span>{t.coreInfoSection}</span>
+                <motion.div
+                  animate={{ rotate: isCoreInfoExpanded ? 180 : 0 }}
+                  transition={{ duration: 0.2, ease: "easeInOut" }}
+                >
+                  <ChevronDown size={14} />
+                </motion.div>
+              </button>
+              <AnimatePresence initial={false}>
+                {isCoreInfoExpanded && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.3, ease: "easeInOut" }}
+                    className="overflow-hidden"
+                  >
+                    <div className="px-4 pb-4 pt-1 space-y-3 border-t border-[#3E4B37]/20">
               <div className="space-y-1">
                 <label className="block text-[9px] uppercase text-[#919B82] ml-1" title={t.gameNameTooltip}>{t.gameNameInput}</label>
                 <input 
@@ -1440,10 +1509,34 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                 />
               </div>
             </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
           </section>
 
-          <section>
-            <h2 className="text-[11px] font-bold text-[#919B82] uppercase mb-3 tracking-wider">Multimédiá a Súbory</h2>
+          <section className="bg-[#131A11] border border-[#3E4B37]/30 rounded-md shrink-0 focus-within:ring-1 focus-within:ring-[#3E4B37]/50">
+              <button 
+                onClick={() => setIsMultimediaExpanded(!isMultimediaExpanded)}
+                className="w-full px-4 py-3 flex items-center justify-between text-[11px] font-bold text-[#919B82] hover:text-[#F5F7F2] hover:bg-[#3E4B37]/10 uppercase tracking-wider transition-colors cursor-pointer"
+              >
+                <span>Multimédiá a Súbory</span>
+                <motion.div
+                  animate={{ rotate: isMultimediaExpanded ? 180 : 0 }}
+                  transition={{ duration: 0.2, ease: "easeInOut" }}
+                >
+                  <ChevronDown size={14} />
+                </motion.div>
+              </button>
+              <AnimatePresence initial={false}>
+                {isMultimediaExpanded && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.3, ease: "easeInOut" }}
+                    className="overflow-hidden"
+                  >
+                    <div className="px-4 pb-4 pt-1 border-t border-[#3E4B37]/20">
             <div className="flex flex-col gap-1.5 mb-3">
               <div className="flex gap-2">
                 <input 
@@ -1595,6 +1688,10 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                 onClearAll={() => setTranslationFiles([])} 
               />
             )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
           </section>
           </div>
 
