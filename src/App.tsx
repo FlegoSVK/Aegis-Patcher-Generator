@@ -63,6 +63,18 @@ const getAutosaveValue = (key: string, defaultValue: any) => {
   return defaultValue;
 };
 
+const computeSHA256 = async (file: File) => {
+  if (!crypto || !crypto.subtle) { return "checksum-unavailable"; }
+  try {
+    const buffer = await file.arrayBuffer();
+    const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  } catch (err) {
+    return "checksum-error";
+  }
+};
+
 export default function App() {
   const [language, setLanguage] = useState<Language>('sk');
   const t = translations[language];
@@ -814,9 +826,6 @@ try {
             $UninstallButton.Visibility = "Collapsed"
             $InstallButton.Content = "${t.scriptDone}"
             $InstallButton.IsEnabled = $true
-            # Clear previous events
-            $InstallButton.Remove_Click($InstallButton.GetEvent_Click()) -ErrorAction SilentlyContinue
-            $InstallButton.Add_Click({ $Form.Close() })
         } catch {
             $InstallProgress.IsIndeterminate = $false
             $StatusText.Text = "${t.scriptFailTitle}"
@@ -995,9 +1004,6 @@ try {
             if ($ProgressPercent) { $ProgressPercent.Text = "100%" }
             $InstallButton.Content = "${t.scriptDone}"
             $InstallButton.IsEnabled = $true
-            # Workaround to clear previous events (just change what click does)
-            $InstallButton.Remove_Click($InstallButton.GetEvent_Click()) -ErrorAction SilentlyContinue
-            $InstallButton.Add_Click({ $Form.Close() })
         } catch {
             $InstallProgress.IsIndeterminate = $false
             $StatusText.Text = "${t.scriptFailTitle}"
@@ -1022,6 +1028,10 @@ try {
   const generateBatchScript = () => {
     return `@echo off
 chcp 65001 >nul
+if not exist "%~dp0Install.ps1" (
+     powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "Add-Type -AssemblyName PresentationFramework; [System.Windows.MessageBox]::Show('${t.scriptBatchErrorExtract}', '${t.scriptFailTitle}', 0, 16)"
+    exit /b 1
+)
 echo ${t.scriptBatchEcho}
 powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Install.ps1"`;
   };
@@ -1030,6 +1040,25 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
     if (!gameName || !author || !translationVersion || !gameVersion || !translationLink || !validationPath) {
       alert(t.alertMissingFields);
       return;
+    }
+
+    // Validation layer for large files and directory payloads
+    const totalSizeBytes = translationFiles.reduce((acc, item) => acc + item.file.size, 0);
+    const totalSizeMB = totalSizeBytes / (1024 * 1024);
+    if (totalSizeMB > 100) {
+      const formattedSize = totalSizeMB.toFixed(1);
+      const confirmSize = window.confirm((t as any).largeSizeWarningText.replace('{size}', formattedSize));
+      if (!confirmSize) {
+        return;
+      }
+    }
+
+    const fileCount = translationFiles.length;
+    if (fileCount > 500) {
+      const confirmCount = window.confirm((t as any).largeCountWarningText.replace('{count}', fileCount.toString()));
+      if (!confirmCount) {
+        return;
+      }
     }
 
     setIsGenerating(true);
@@ -1068,8 +1097,27 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
     try {
       const zip = new JSZip();
       
+      const rawPS1 = generatePowerShellScript();
+      
+      // Validation for unbalanced brackets in PowerShell script
+      let bracketCount = 0;
+      let parenCount = 0;
+      for (const char of rawPS1) {
+        if (char === '{') bracketCount++;
+        if (char === '}') bracketCount--;
+        if (char === '(') parenCount++;
+        if (char === ')') parenCount--;
+      }
+      if (bracketCount !== 0 || parenCount !== 0) {
+        const warn = window.confirm((t as any).scriptSyntaxWarning);
+        if (!warn) {
+           setIsGenerating(false);
+           return;
+        }
+      }
+      
       // PowerShell Installer with UTF-8 BOM
-      const ps1Content = '\uFEFF' + generatePowerShellScript();
+      const ps1Content = '\uFEFF' + rawPS1;
       zip.file("Install.ps1", ps1Content);
       
       // Batch launcher
@@ -1088,10 +1136,18 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
         assetsFolder.file("qrcode.jpg", qrCodeFile);
       }
 
-      // Add translation files
+      // Add translation files and generate checksums
       if (translationFiles.length > 0 && assetsFolder) {
+        const checksums: Record<string, string> = {};
         for (const item of translationFiles) {
           assetsFolder.file(item.path, item.file);
+          if (crypto && crypto.subtle) {
+            const hash = await computeSHA256(item.file);
+            checksums[item.path] = hash;
+          }
+        }
+        if (crypto && crypto.subtle) {
+          assetsFolder.file("checksums.json", JSON.stringify(checksums, null, 2));
         }
       }
 

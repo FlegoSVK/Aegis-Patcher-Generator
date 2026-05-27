@@ -88,6 +88,10 @@ export const translations = {
     alertMissingFields: 'Prosím, vyplňte všetky povinné polia (Názov Hry, Autor Prekladu, Verzia prekladu, Na verziu hry, Link na stránku prekladu, Overovacia Cesta).',
     alertGenerateError: 'Došlo k chybe pri vytváraní archívu.',
     successMessage: 'ZIP archív bol úspešne vygenerovaný!',
+    largeSizeWarningTitle: 'Upozornenie na veľkosť súborov',
+    largeSizeWarningText: 'Celková veľkosť pripojených súborov prekladu je {size} MB. Generovanie veľmi veľkých balíkov prekladov môže byť neefektívne a vytvorí nadmerne veľký inštalátor. Chcete napriek tomu vygenerovať balík?',
+    largeCountWarningText: 'Upozornenie: Pridali ste veľký počet súborov ({count}). Inštalácia prekladu môže na strane koncového hráča prebiehať veľmi dlho. Odporúča sa pribaliť iba skutočne zmenené/preložené súbory (nie celé nemodifikované priečinky hry). Chcete napriek tomu vygenerovať balík?',
+    scriptSyntaxWarning: 'Upozornenie: Vygenerovaný inštalačný skript obsahuje nevyvážené zátvorky (možná chyba syntaxe). ZIP archív bude vygenerovaný, ale skript nemusí fungovať správne.',
     
     // Live Preview
     previewLabel: 'ŽIVÝ NÁHĽAD VZHĽADU',
@@ -124,6 +128,7 @@ export const translations = {
     scriptFailTitle: 'Chyba',
     scriptCriticalErr: 'Kritická chyba inštalátora:',
     scriptBatchEcho: 'Spustam instalator prekladu...',
+    scriptBatchErrorExtract: 'Musíte najprv rozbaliť celý ZIP archív (Extrahovať) pred spustením inštalátora!',
     scriptUpdate: 'Aktualizovať',
     scriptUninstall: 'Odinštalovať',
     scriptUninstalling: 'Odinštalujem...',
@@ -218,6 +223,10 @@ export const translations = {
     alertMissingFields: 'Prosím, vyplňte všechna povinná pole (Název Hry, Autor Překladu, Verze překladu, Na verzi hry, Odkaz na stránku překladu, Ověřovací Cesta).',
     alertGenerateError: 'Došlo k chybě při vytváření archivu.',
     successMessage: 'ZIP archiv byl úspěšně vygenerován!',
+    largeSizeWarningTitle: 'Upozornění na velikost souborů',
+    largeSizeWarningText: 'Celková velikost připojených souborů překladu je {size} MB. Generování velmi velkých balíčků překladů může být neefektivní a vytvoří nadměrně velký instalátor. Chcete přesto vygenerovat balíček?',
+    largeCountWarningText: 'Upozornění: Přidali jste velký počet souborů ({count}). Instalace překladu může na straně koncového hráče probíhat velmi dlouho. Doporučuje se přibalit pouze skutečně změněné/přeložené soubory (ne celé nemodifikované složky hry). Chcete přesto vygenerovat balíček?',
+    scriptSyntaxWarning: 'Upozornění: Vygenerovaný instalační skript obsahuje nevyvážené závorky (možná chyba syntaxe). ZIP archiv bude vygenerován, ale skript nemusí fungovat správně.',
     
     // Live Preview
     previewLabel: 'ŽIVÝ NÁHLED VZHLEDU',
@@ -254,6 +263,7 @@ export const translations = {
     scriptFailTitle: 'Chyba',
     scriptCriticalErr: 'Kritická chyba instalátoru:',
     scriptBatchEcho: 'Spoustim instalator prekladu...',
+    scriptBatchErrorExtract: 'Musíte nejprve rozbalit celý ZIP archiv (Extrahovat) před spuštěním instalátoru!',
     scriptUpdate: 'Aktualizovat',
     scriptUninstall: 'Odinstalovat',
     scriptUninstalling: 'Odinstalovávám...',
