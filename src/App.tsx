@@ -320,6 +320,7 @@ try {
             <ProgressBar Name="InstallProgress" Height="6" Minimum="0" Maximum="100" Background="#222222" Foreground="#3E4B37" BorderThickness="0" Margin="0,0,0,20" IsIndeterminate="False"/>
             
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Name="UninstallButton" Content="${t.scriptUninstall}" Width="100" Height="32" Margin="0,0,10,0" Background="#993333" Foreground="${eColorMain}" BorderThickness="0" FontSize="12" FontWeight="Bold" Cursor="Hand" Visibility="Collapsed"/>
                 <Button Name="CloseButton" Content="${t.scriptClose}" Width="100" Height="32" Margin="0,0,10,0" Background="Transparent" Foreground="${eColorMain}" BorderBrush="#333333" BorderThickness="1" FontSize="12" Cursor="Hand"/>
                 <Button Name="InstallButton" Content="${t.scriptInstall}" Width="140" Height="32" Background="#3E4B37" Foreground="${eColorMain}" BorderThickness="0" FontSize="12" FontWeight="Bold" Cursor="Hand"/>
             </StackPanel>
@@ -380,6 +381,7 @@ try {
     $PathTextBox = $Form.FindName("PathTextBox")
     $BrowseButton = $Form.FindName("BrowseButton")
     $InstallButton = $Form.FindName("InstallButton")
+    $UninstallButton = $Form.FindName("UninstallButton")
     $CloseButtonTop = $Form.FindName("CloseButtonTop")
     $CloseButton = $Form.FindName("CloseButton")
     $StatusText = $Form.FindName("StatusText")
@@ -583,6 +585,117 @@ try {
     $CloseButtonTop.Add_Click({ $Form.Close() })
     $CloseButton.Add_Click({ $Form.Close() })
 
+    function Update-UIState {
+        $selectedPath = $PathTextBox.Text
+        if (-not [string]::IsNullOrWhiteSpace($selectedPath) -and (Test-Path $selectedPath)) {
+            $manifestPath = Join-Path $selectedPath "Aegis_Translation_Manifest.json"
+            if (Test-Path $manifestPath) {
+                $InstallButton.Content = "${t.scriptUpdate}"
+                $UninstallButton.Visibility = "Visible"
+            } else {
+                $InstallButton.Content = "${t.scriptInstall}"
+                $UninstallButton.Visibility = "Collapsed"
+            }
+        } else {
+            $InstallButton.Content = "${t.scriptInstall}"
+            $UninstallButton.Visibility = "Collapsed"
+        }
+    }
+
+    $PathTextBox.Add_TextChanged({ Update-UIState })
+    # Trigger UI update initially
+    Update-UIState
+
+    $UninstallButton.Add_Click({
+        $selectedPath = $PathTextBox.Text
+        $manifestPath = Join-Path $selectedPath "Aegis_Translation_Manifest.json"
+        $backupDir = Join-Path $selectedPath "Aegis_Translation_Backup"
+        
+        $UninstallButton.IsEnabled = $false
+        $InstallButton.IsEnabled = $false
+        $BrowseButton.Visibility = "Collapsed"
+        $InstallProgress.IsIndeterminate = $true
+        $StatusText.Text = "${t.scriptUninstalling}"
+        if ($ProgressPercent) { $ProgressPercent.Text = "${t.scriptUninstalling}" }
+        
+        try {
+            if (-not (Test-Path $backupDir)) {
+                $StatusText.Text = "${t.scriptBackupMissing}"
+                if ($ProgressPercent) { $ProgressPercent.Text = "${t.scriptFailTitle}" }
+                $UninstallButton.IsEnabled = $false
+                $InstallButton.IsEnabled = $true
+                $BrowseButton.Visibility = "Visible"
+                $InstallProgress.IsIndeterminate = $false
+                return
+            }
+
+            $manifest = Get-Content -Path $manifestPath | ConvertFrom-Json
+            $totalFiles = $manifest.files.Count
+            $currentFile = 0
+
+            # Delete installed files that have no backups (they were new)
+            $InstallProgress.IsIndeterminate = $false
+            $InstallProgress.Maximum = ($totalFiles * 2) - 1
+            $InstallProgress.Value = 0
+
+            foreach ($file in $manifest.files) {
+                $destPath = Join-Path $selectedPath $file.path
+                if (Test-Path $destPath) {
+                    $StatusText.Text = "${t.scriptUninstalling} " + $file.name
+                    Remove-Item -Path $destPath -Force -ErrorAction SilentlyContinue
+                }
+                $currentFile++
+                $percent = [math]::Truncate(($currentFile / $InstallProgress.Maximum) * 100)
+                $InstallProgress.Value = $currentFile
+                if ($ProgressPercent) { $ProgressPercent.Text = "$percent%" }
+                try { [System.Windows.Forms.Application]::DoEvents() } catch { }
+            }
+
+            # Restore backups
+            $backupFiles = Get-ChildItem -Path $backupDir -Recurse -File
+            foreach ($item in $backupFiles) {
+                $relativePath = $item.FullName.Substring($backupDir.Length + 1)
+                $destPath = Join-Path $selectedPath $relativePath
+                $destDir = Split-Path $destPath
+                if (!(Test-Path $destDir)) { New-Item -ItemType Directory -Force -Path $destDir | Out-Null }
+                
+                $StatusText.Text = "${t.scriptRestoring} " + $item.Name
+                Copy-Item -Path $item.FullName -Destination $destPath -Force
+                $currentFile++
+                $percent = [math]::Truncate(($currentFile / $InstallProgress.Maximum) * 100)
+                $InstallProgress.Value = $currentFile
+                if ($ProgressPercent) { $ProgressPercent.Text = "$percent%" }
+                try { [System.Windows.Forms.Application]::DoEvents() } catch { }
+            }
+
+            # Cleanup
+            Remove-Item -Path $backupDir -Recurse -Force -ErrorAction SilentlyContinue
+            Remove-Item -Path $manifestPath -Force -ErrorAction SilentlyContinue
+
+            $InstallProgress.Value = $InstallProgress.Maximum
+            $StatusText.Text = "${t.scriptUninstallSuccess}"
+            if ($ProgressPercent) { $ProgressPercent.Text = "100%" }
+            $UninstallButton.Visibility = "Collapsed"
+            $InstallButton.Content = "${t.scriptDone}"
+            $InstallButton.IsEnabled = $true
+            # Clear previous events
+            $InstallButton.Remove_Click($InstallButton.GetEvent_Click()) -ErrorAction SilentlyContinue
+            $InstallButton.Add_Click({ $Form.Close() })
+        } catch {
+            $InstallProgress.IsIndeterminate = $false
+            $StatusText.Text = "${t.scriptFailTitle}"
+            if ($ProgressPercent) { $ProgressPercent.Text = "${t.scriptFailTitle}" }
+            [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, "${t.scriptFailTitle}", 0, 16)
+            
+            # Reset UI completely by calling routine
+            Update-UIState
+            $UninstallButton.IsEnabled = $true
+            $InstallButton.IsEnabled = $true
+            $BrowseButton.Visibility = "Visible"
+            $BrowseButton.IsEnabled = $true
+        }
+    })
+
     $InstallButton.Add_Click({
         $selectedPath = $PathTextBox.Text
         if ([string]::IsNullOrWhiteSpace($selectedPath) -or !(Test-Path $selectedPath)) {
@@ -624,6 +737,7 @@ try {
             try { New-Item -ItemType Directory -Force -Path $targetInstallPath | Out-Null } catch { }
         }
         
+        $UninstallButton.IsEnabled = $false
         $InstallButton.IsEnabled = $false
         $BrowseButton.Visibility = "Collapsed"
         $InstallProgress.IsIndeterminate = $true
@@ -633,7 +747,10 @@ try {
         try {
             $src = Join-Path $PSScriptRoot "Assets"
             if (Test-Path $src) {
-                $assets = @(Get-ChildItem -Path $src | Where-Object { $_.Name -ne 'banner.jpg' -and $_.Name -ne 'qrcode.jpg' })
+                # Get only files, exclude root banner and qrcode
+                $assets = @(Get-ChildItem -Path $src -Recurse -File | Where-Object { 
+                    -not ($_.DirectoryName -eq $src -and ($_.Name -eq 'banner.jpg' -or $_.Name -eq 'qrcode.jpg'))
+                })
                 $totalFiles = $assets.Count
                 if ($totalFiles -gt 0) {
                     $InstallProgress.IsIndeterminate = $false
@@ -641,6 +758,21 @@ try {
                     $InstallProgress.Value = 0
                     
                     $currentFile = 0
+                    
+                    $manifestPath = Join-Path $selectedPath "Aegis_Translation_Manifest.json"
+                    $backupDir = Join-Path $selectedPath "Aegis_Translation_Backup"
+                    $isUpdate = Test-Path $manifestPath
+                    
+                    $oldManifest = $null
+                    if ($isUpdate) {
+                        try { $oldManifest = Get-Content -Path $manifestPath -Raw -ErrorAction SilentlyContinue | ConvertFrom-Json } catch { }
+                    }
+                    
+                    $manifestData = @{
+                        version = "${eTranVersion}"
+                        files = @()
+                    }
+                    
                     foreach ($item in $assets) {
                         $currentFile++
                         $percent = [math]::Truncate(($currentFile / $totalFiles) * 100)
@@ -649,10 +781,71 @@ try {
                         if ($ProgressPercent) { $ProgressPercent.Text = "$percent%" }
                         try { [System.Windows.Forms.Application]::DoEvents() } catch { }
                         
-                        Copy-Item -Path $item.FullName -Destination $targetInstallPath -Recurse -Force
+                        $relativePath = $item.FullName.Substring($src.Length).Trim('\')
+                        $destPath = Join-Path $targetInstallPath $relativePath
+                        $destDir = Split-Path $destPath
+                        
+                        if (-not (Test-Path $destDir)) { New-Item -ItemType Directory -Force -Path $destDir | Out-Null }
+                        
+                        $manifestRelPath = $relativePath
+                        if (-not [string]::IsNullOrWhiteSpace($InstallRelativePath)) {
+                             $manifestRelPath = Join-Path $InstallRelativePath $relativePath
+                        }
+                        
+                        # Backup logic
+                        $backupFilePath = Join-Path $backupDir $manifestRelPath
+                        
+                        if (Test-Path $destPath) {
+                            $needsBackup = $false
+                            if (-not $isUpdate) {
+                                $needsBackup = $true
+                            } else {
+                                $targetInfo = Get-Item -Path $destPath
+                                $oldFileEntry = $null
+                                if ($oldManifest -and $oldManifest.files) {
+                                    $oldFileEntry = $oldManifest.files | Where-Object { $_.path -eq $manifestRelPath } | Select-Object -First 1
+                                }
+                                
+                                if ($oldFileEntry) {
+                                    if ($null -ne $oldFileEntry.size -and $null -ne $oldFileEntry.ticks) {
+                                        # If length or modified time is different, it means the game updated this file!
+                                        if (($targetInfo.Length -ne $oldFileEntry.size) -or ($targetInfo.LastWriteTimeUtc.Ticks.ToString() -ne $oldFileEntry.ticks.ToString())) {
+                                            $needsBackup = $true
+                                        }
+                                    } else {
+                                        # Legacy manifest without file metadata, only backup if not already backed up
+                                        if (-not (Test-Path $backupFilePath)) {
+                                            $needsBackup = $true
+                                        }
+                                    }
+                                } else {
+                                    # New file introduced in this translation update
+                                    $needsBackup = $true
+                                }
+                            }
+                            
+                            if ($needsBackup) {
+                                $backupFileDir = Split-Path $backupFilePath
+                                if (-not (Test-Path $backupFileDir)) { New-Item -ItemType Directory -Force -Path $backupFileDir | Out-Null }
+                                Copy-Item -Path $destPath -Destination $backupFilePath -Force
+                            }
+                        }
+                        
+                        Copy-Item -Path $item.FullName -Destination $destPath -Force
                         
                         try { [System.Windows.Forms.Application]::DoEvents() } catch { }
+
+                        $newTargetInfo = Get-Item -Path $destPath
+                        $manifestData.files += @{ 
+                            name = $item.Name; 
+                            path = $manifestRelPath; 
+                            size = $newTargetInfo.Length; 
+                            ticks = $newTargetInfo.LastWriteTimeUtc.Ticks.ToString() 
+                        }
                     }
+                    
+                    $manifestJson = $manifestData | ConvertTo-Json -Depth 5 -Compress
+                    Set-Content -Path $manifestPath -Value $manifestJson -Encoding UTF8 -Force
                 }
             }
             
@@ -663,13 +856,16 @@ try {
             $InstallButton.Content = "${t.scriptDone}"
             $InstallButton.IsEnabled = $true
             # Workaround to clear previous events (just change what click does)
+            $InstallButton.Remove_Click($InstallButton.GetEvent_Click()) -ErrorAction SilentlyContinue
             $InstallButton.Add_Click({ $Form.Close() })
         } catch {
             $InstallProgress.IsIndeterminate = $false
             $StatusText.Text = "${t.scriptFailTitle}"
             if ($ProgressPercent) { $ProgressPercent.Text = "${t.scriptFailTitle}" }
             [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, "${t.scriptFailTitle}", 0, 16)
+            Update-UIState
             $InstallButton.IsEnabled = $true
+            $UninstallButton.IsEnabled = $true
             $BrowseButton.Visibility = "Visible"
             $BrowseButton.IsEnabled = $true
         }

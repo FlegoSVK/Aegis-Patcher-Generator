@@ -2,7 +2,6 @@
 
 ## Krátky popis
 Aegis Patcher Generator je webová aplikácia určená pre autorov a distribútorov slovenských a českých herných prekladov (a iných módov). Umožňuje jednoducho a rýchlo vygenerovať profesionálny a vizuálne lákavý inštalátor (patcher) bez potreby programovania. Užívateľ vyplní základné údaje o preklade, priloží inštalačné súbory a obrázok (banner) a aplikácia vygeneruje hotový ZIP balíček obsahujúci spustiteľný inštalátor v prostredí PowerShell (WPF GUI).
-<img width="1580" height="1217" alt="inst apka" src="https://github.com/user-attachments/assets/23c0f465-c3c4-438a-a88f-cb172c19d574" />
 
 ## Vlastnosti a funkcie programu
 
@@ -17,7 +16,7 @@ Aegis Patcher Generator je webová aplikácia určená pre autorov a distribúto
 *   **Novinky v tejto verzii (Changelog):** Možnosť pridať zoznam zmien (changelog). V inštalátore sa vytvorí tlačidlo "Zobraziť novinky", po kliknutí sa zobrazí panel s textom aktualizácií.
 *   **Farby textu (Hlavná a Sekundárna):** Možnosť prispôsobiť si farbu textov inštalátora, aby ladili s nahraným bannerom.
 *   **Overovacia Cesta (napr. názov zložky hry):** Pomáha inštalátoru zistiť, či používateľ vybral na inštaláciu skutočne správnu zložku s hrou. Ak cieľový priečinok neobsahuje definovanú zložku (ako podsložku), inštalátor používateľa pri inštalácii upozorní.
-*   **Steam App ID (voliteľné):** Zadajte číselné ID hry zo služby Steam. Výsledný inštalátor pri otvorení automaticky skontroluje systémové registre (`Uninstall\Steam App ID`) a pokúsi sa samostatne vyhľadať a predvyplniť cestu k nainštalovanej hre.
+*   **Steam App ID (voliteľné):** Zadajte číselné ID hry zo služby Steam. Inštalátor disponuje pokročilou autodetekciou: prehľadáva nielen systémové registre (HKCU a HKLM vrátane WOW6432Node), ale navyše dokáže dynamicky prečítať a parsovať súbory knižníc Steamu (napr. `libraryfolders.vdf`). Tým pádom spoľahlivo vyhľadá a predvyplní cestu k hre, aj keď je nainštalovaná na sekundárnom (nesystémovom) disku alebo v inej zložke.
 *   **Cesta na uloženie prekladu (nepovinné):** V prípade, že si inštalátor od používateľa žiada iba koreňovú zložku hry, no vaše súbory patria hlbšie do štruktúry (napr. `Game\Content\Paks`), tento parameter inštalátoru oznámi, kam presne má súbory skopírovať vzhľadom na zvolený priečinok.
 *   **Informačné bubliny:** Pri prejdení myšou ponad názvy polí sa zobrazí krátka nápoveda (tooltip) vysvetľujúca funkciu jednotlivých parametrov.
 
@@ -29,7 +28,9 @@ Aegis Patcher Generator je webová aplikácia určená pre autorov a distribúto
 
 ### 3. Súbory a Inštalačný proces
 *   **Pridanie súborov a priečinkov:** Sem vložíte všetky súbory prekladu, ktoré sa majú dostať k finálnemu hráčovi. Systém podporuje výber viacerých individuálnych súborov, ale aj nahranie celých stromových priečinkov.
-*   **Bezpečné kopírovanie s ukazovateľom priebehu:** Samotný inštalátor disponuje funkciou Progress Baru, priebežným výpisom názvu kopírovaného súboru, výpočtom celkových percent a validáciou inštalačných adresárov. Pred vygenerovaním ZIP súboru aplikácia rovnako validuje, či ste vyplnili všetky potrebné inštalačné polia.
+*   **Bezpečné kopírovanie s ukazovateľom priebehu:** Samotný inštalátor disponuje funkciou Progress Baru, priebežným výpisom názvu kopírovaného súboru, výpočtom celkových percent a validáciou inštalačných adresárov. Pred vygenerovaním ZIP súboru aplikácia rovnako validuje, či ste vyplnili všetky vyžadované polia.
+*   **Bezpečné odinštalovanie a rollback:** Pri prvej inštalácii prekladu si inštalátor automaticky vytvorí zálohu všetkých prepisovaných herných súborov do priečinka `Aegis_Translation_Backup` a vygeneruje bezpečný JSON manifest nainštalovaných súborov (`Aegis_Translation_Manifest.json`). Tlačidlo v inštalátore sa dynamicky prepne na **"Odinštalovať"** a umožní používateľovi kedykoľvek vrátiť celú hru do pôvodného stavu pred prekladom s obnovou záloh.
+*   **Inteligentný režim aktualizácie:** Inštalátor dokáže porovnať veľkosť súboru a čas poslednej úpravy (Ticks) predchádzajúcich verzií s tými, ktoré sú v hre teraz. Ak medzitým došlo k oficiálnemu update-u hry, ktorý prepísal preložené súbory za úplne nové originály, inštalátor to rozpozná a zabezpečí bezpečné znovuzálohovanie novej verzie hry namiesto starých nesúvisiacich záloh.
 
 ### 4. Sledovanie histórie a relácií
 *   **História predvolieb:** Nemusíte zakaždým všetko vyplňovať ručne. Ak generujete inštalátory pravidelne, stačí otvoriť sekciu "História" na hornej lište a jedným kliknutím načítať predchádzajúci projekt na danú hru.

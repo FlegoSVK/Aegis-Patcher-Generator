@@ -121,7 +121,13 @@ export const translations = {
     scriptDone: 'Hotovo',
     scriptFailTitle: 'Chyba',
     scriptCriticalErr: 'Kritická chyba inštalátora:',
-    scriptBatchEcho: 'Spustam instalator prekladu...'
+    scriptBatchEcho: 'Spustam instalator prekladu...',
+    scriptUpdate: 'Aktualizovať',
+    scriptUninstall: 'Odinštalovať',
+    scriptUninstalling: 'Odinštalujem...',
+    scriptRestoring: 'Obnovujem:',
+    scriptUninstallSuccess: 'Odinštalácia bola úspešná!',
+    scriptBackupMissing: 'Záloha neexistuje, pôvodné súbory nebolo možné obnoviť.'
   },
   cz: {
     // Header & Meta
@@ -243,6 +249,12 @@ export const translations = {
     scriptDone: 'Hotovo',
     scriptFailTitle: 'Chyba',
     scriptCriticalErr: 'Kritická chyba instalátoru:',
-    scriptBatchEcho: 'Spoustim instalator prekladu...'
+    scriptBatchEcho: 'Spoustim instalator prekladu...',
+    scriptUpdate: 'Aktualizovat',
+    scriptUninstall: 'Odinstalovat',
+    scriptUninstalling: 'Odinstalovávám...',
+    scriptRestoring: 'Obnovuji:',
+    scriptUninstallSuccess: 'Odinstalace byla úspěšná!',
+    scriptBackupMissing: 'Záloha neexistuje, původní soubory nebylo možné obnovit.'
   }
 };
