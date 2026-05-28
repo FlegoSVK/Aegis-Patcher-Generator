@@ -31,6 +31,46 @@ const escapeXml = (unsafe: string) => {
   });
 };
 
+const getRelativeLuminance = (r: number, g: number, b: number) => {
+  const parseComponent = (val: number) => {
+    const s = val / 255;
+    return s <= 0.04045 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  };
+  return 0.2126 * parseComponent(r) + 0.7152 * parseComponent(g) + 0.0722 * parseComponent(b);
+};
+
+const getContrastRatio = (hex1: string, hex2: string): number => {
+  const hexToRgb = (hex: string) => {
+    let cleanHex = hex.replace('#', '').trim();
+    if (cleanHex.length === 3) {
+      cleanHex = cleanHex[0] + cleanHex[0] + cleanHex[1] + cleanHex[1] + cleanHex[2] + cleanHex[2];
+    }
+    if (cleanHex.length !== 6) return { r: 255, g: 255, b: 255 };
+    const num = parseInt(cleanHex, 16);
+    if (isNaN(num)) return { r: 255, g: 255, b: 255 };
+    return {
+      r: (num >> 16) & 255,
+      g: (num >> 8) & 255,
+      b: num & 255
+    };
+  };
+
+  try {
+    const rgb1 = hexToRgb(hex1);
+    const rgb2 = hexToRgb(hex2);
+
+    const l1 = getRelativeLuminance(rgb1.r, rgb1.g, rgb1.b);
+    const l2 = getRelativeLuminance(rgb2.r, rgb2.g, rgb2.b);
+
+    const lighter = Math.max(l1, l2);
+    const darker = Math.min(l1, l2);
+
+    return parseFloat(((lighter + 0.05) / (darker + 0.05)).toFixed(2));
+  } catch {
+    return 21;
+  }
+};
+
 export interface GameSettings {
   id: string;
   gameName: string;
@@ -94,6 +134,9 @@ export default function App() {
   const [supportText, setSupportText] = useState(() => getAutosaveValue('supportText', 'Investuj do slovenčiny v hrách'));
   const [textColorMain, setTextColorMain] = useState(() => getAutosaveValue('textColorMain', '#F5F7F2'));
   const [textColorSecondary, setTextColorSecondary] = useState(() => getAutosaveValue('textColorSecondary', '#919B82'));
+
+  const contrastRatioMain = getContrastRatio(textColorMain, '#111111');
+  const contrastRatioSec = getContrastRatio(textColorSecondary, '#111111');
   const [bannerPreview, setBannerPreview] = useState<string | null>(null);
   const [bannerFile, setBannerFile] = useState<File | null>(null);
   const [fullWindowBackground, setFullWindowBackground] = useState(() => getAutosaveValue('fullWindowBackground', true));
@@ -1511,9 +1554,51 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                 />
               </div>
 
+              <div className="space-y-1 mb-3">
+                <label className="block text-[9px] uppercase text-[#919B82] ml-1" title={(t as any).presetTooltip || ''}>{(t as any).presetInput}</label>
+                <select
+                  value={
+                    (textColorMain.toUpperCase() === '#FFFFFF' && textColorSecondary.toUpperCase() === '#A0A0A0') ? 'dark' :
+                    (textColorMain.toUpperCase() === '#111111' && textColorSecondary.toUpperCase() === '#555555') ? 'light' :
+                    (textColorMain.toUpperCase() === '#FCEE0A' && textColorSecondary.toUpperCase() === '#00FFFF') ? 'cyberpunk' :
+                    (textColorMain.toUpperCase() === '#F5F7F2' && textColorSecondary.toUpperCase() === '#919B82') ? 'forest' : 'custom'
+                  }
+                  onChange={(e) => {
+                    const p = e.target.value;
+                    if (p === 'dark') { setTextColorMain('#FFFFFF'); setTextColorSecondary('#A0A0A0'); }
+                    else if (p === 'light') { setTextColorMain('#111111'); setTextColorSecondary('#555555'); }
+                    else if (p === 'cyberpunk') { setTextColorMain('#FCEE0A'); setTextColorSecondary('#00FFFF'); }
+                    else if (p === 'forest') { setTextColorMain('#F5F7F2'); setTextColorSecondary('#919B82'); }
+                  }}
+                  className="w-full bg-[#131A11] border border-[#3E4B37] text-[#F5F7F2] rounded-[4px] px-2 py-1.5 text-[11px] focus:outline-none focus:border-[#919B82] transition-colors"
+                >
+                  <option value="custom">-- {(t as any).presetCustom} --</option>
+                  <option value="forest">{(t as any).presetForest} (#F5F7F2 / #919B82)</option>
+                  <option value="dark">{(t as any).presetDark} (#FFFFFF / #A0A0A0)</option>
+                  <option value="light">{(t as any).presetLight} (#111111 / #555555)</option>
+                  <option value="cyberpunk">{(t as any).presetCyberpunk} (#FCEE0A / #00FFFF)</option>
+                </select>
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="block text-[9px] uppercase text-[#919B82] ml-1" title={t.textColorMainTooltip}>{t.textColorMainInput}</label>
+                  <div className="flex items-center justify-between px-1">
+                    <label className="block text-[9px] uppercase text-[#919B82]" title={t.textColorMainTooltip}>{t.textColorMainInput}</label>
+                    <span 
+                      className={`text-[9px] scale-[0.9] px-1 rounded font-bold border transition-colors cursor-help ${
+                        contrastRatioMain < 4.5 
+                          ? 'bg-amber-950/40 text-amber-500 border-amber-900/40 animate-pulse' 
+                          : 'bg-emerald-950/40 text-emerald-400 border-emerald-900/40'
+                      }`} 
+                      title={
+                        contrastRatioMain < 4.5 
+                          ? (t as any).contrastWarningText.replace('{ratio}', contrastRatioMain.toString()) 
+                          : `${(t as any).contrastLabel}: ${contrastRatioMain}:1`
+                      }
+                    >
+                      {contrastRatioMain < 4.5 ? '⚠️ ' : ''}{contrastRatioMain}:1
+                    </span>
+                  </div>
                   <div className="flex bg-[#131A11] border border-[#3E4B37] rounded-[4px] p-1 gap-2 items-center">
                     <input
                       type="color"
@@ -1532,7 +1617,23 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                 </div>
 
                 <div className="space-y-1">
-                  <label className="block text-[9px] uppercase text-[#919B82] ml-1" title={t.textColorSecTooltip}>{t.textColorSecInput}</label>
+                  <div className="flex items-center justify-between px-1">
+                    <label className="block text-[9px] uppercase text-[#919B82]" title={t.textColorSecTooltip}>{t.textColorSecInput}</label>
+                    <span 
+                      className={`text-[9px] scale-[0.9] px-1 rounded font-bold border transition-colors cursor-help ${
+                        contrastRatioSec < 4.5 
+                          ? 'bg-amber-950/40 text-amber-500 border-amber-900/40 animate-pulse' 
+                          : 'bg-emerald-950/40 text-emerald-400 border-emerald-900/40'
+                      }`} 
+                      title={
+                        contrastRatioSec < 4.5 
+                          ? (t as any).contrastWarningText.replace('{ratio}', contrastRatioSec.toString()) 
+                          : `${(t as any).contrastLabel}: ${contrastRatioSec}:1`
+                      }
+                    >
+                      {contrastRatioSec < 4.5 ? '⚠️ ' : ''}{contrastRatioSec}:1
+                    </span>
+                  </div>
                   <div className="flex bg-[#131A11] border border-[#3E4B37] rounded-[4px] p-1 gap-2 items-center">
                     <input
                       type="color"

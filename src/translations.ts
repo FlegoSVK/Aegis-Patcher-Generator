@@ -45,8 +45,20 @@ export const translations = {
     changelogTooltip: 'Stručný prehľad zmien a opráv v tejto verzii prekladu.',
     changelogPlaceholder: 'Aké zmeny prináša táto verzia?',
     
+    presetInput: 'Farebná Schéma (Predvoľba)',
+    presetTooltip: 'Vyberte si predvolenú sadu farieb.',
+    presetCustom: 'Vlastná',
+    presetDark: 'Tmavá',
+    presetLight: 'Svetlá',
+    presetCyberpunk: 'Cyberpunk',
+    presetForest: 'Lesná',
+
     textColorMainInput: 'Farba Textu (Hlavná)',
     textColorMainTooltip: 'Hlavná farba textu (zvyčajne biela alebo svetlá).',
+    
+    contrastLabel: 'Kontrast',
+    contrastWarningTitle: 'Nízky kontrast',
+    contrastWarningText: 'Kontrastný pomer k pozadiu je príliš nízky ({ratio}:1). Hlavný text by sa mohol zle čítať. Odporúča sa pomer aspoň 4.5:1.',
     
     textColorSecInput: 'Farba Textu (Sekundárna)',
     textColorSecTooltip: 'Menej výrazná farba textu (napr. pre popisky a drobné texty).',
@@ -198,8 +210,20 @@ export const translations = {
     changelogTooltip: 'Stručný přehled změn a oprav v této verzi překladu.',
     changelogPlaceholder: 'Jaké změny přináší tato verze?',
     
+    presetInput: 'Barevné Schéma (Předvolba)',
+    presetTooltip: 'Vyberte si předvolenou sadu barev.',
+    presetCustom: 'Vlastní',
+    presetDark: 'Tmavá',
+    presetLight: 'Světlá',
+    presetCyberpunk: 'Cyberpunk',
+    presetForest: 'Lesní',
+
     textColorMainInput: 'Barva Textu (Hlavní)',
     textColorMainTooltip: 'Hlavní barva textu (obvykle bílá nebo světlá).',
+    
+    contrastLabel: 'Kontrast',
+    contrastWarningTitle: 'Nízký kontrast',
+    contrastWarningText: 'Kontrastní poměr k pozadí je příliš nízký ({ratio}:1). Hlavní text by se mohl špatně číst. Doporučuje se poměr alespoň 4.5:1.',
     
     textColorSecInput: 'Barva Textu (Sekundární)',
     textColorSecTooltip: 'Méně výrazná barva textu (např. pro popisky a drobné texty).',
