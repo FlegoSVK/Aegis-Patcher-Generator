@@ -53,7 +53,25 @@ export const translations = {
     presetCyberpunk: 'Cyberpunk',
     presetForest: 'Lesná',
 
-    textColorMainInput: 'Farba Textu (Hlavná)',
+    advancedSettingsTitle: 'Rozšírené Farebné Nastavenia',
+    saveSchemePlaceholder: 'Názov uloženej schémy',
+    saveSchemeButton: 'Uložiť',
+    savedSchemesTitle: 'Uložené schémy',
+    deleteSchemeTitle: 'Vymazať schému',
+
+    colorBgInput: 'Farba Pozadia',
+    colorSurfaceInput: 'Farba Povrchu (Polia)',
+    colorAccentInput: 'Farba Akcentu (Tlačidlá)',
+    randomSchemeButton: 'Generovať náhodnú schému',
+    
+    colorTextTitleInput: 'Farba Textu (Nadpis)',
+    colorTextLinkInput: 'Farba Textu (Odkazy)',
+    colorTextStatusInput: 'Farba Textu (Stav)',
+    colorTextButtonInput: 'Farba Textu (Tlačidlá)',
+    colorTextButtonPrimaryInput: 'Farba Textu (Hlavné tlačidlo)',
+    colorTextBadgeInput: 'Farba Textu (Odznak verzie)',
+
+    textColorMainInput: 'Farba Textu (Všeobecná)',
     textColorMainTooltip: 'Hlavná farba textu (zvyčajne biela alebo svetlá).',
     
     contrastLabel: 'Kontrast',
@@ -218,7 +236,25 @@ export const translations = {
     presetCyberpunk: 'Cyberpunk',
     presetForest: 'Lesní',
 
-    textColorMainInput: 'Barva Textu (Hlavní)',
+    advancedSettingsTitle: 'Rozšířená Barevná Nastavení',
+    saveSchemePlaceholder: 'Název uloženého schématu',
+    saveSchemeButton: 'Uložit',
+    savedSchemesTitle: 'Uložená schémata',
+    deleteSchemeTitle: 'Vymazat schéma',
+
+    colorBgInput: 'Barva Pozadí',
+    colorSurfaceInput: 'Barva Povrchu (Pole)',
+    colorAccentInput: 'Barva Akcentu (Tlačítka)',
+    randomSchemeButton: 'Generovat náhodné schéma',
+    
+    colorTextTitleInput: 'Barva Textu (Nadpis)',
+    colorTextLinkInput: 'Barva Textu (Odkazy)',
+    colorTextStatusInput: 'Barva Textu (Stav)',
+    colorTextButtonInput: 'Barva Textu (Tlačítka)',
+    colorTextButtonPrimaryInput: 'Barva Textu (Hlavní tlačítko)',
+    colorTextBadgeInput: 'Barva Textu (Odznak verze)',
+
+    textColorMainInput: 'Barva Textu (Obecná)',
     textColorMainTooltip: 'Hlavní barva textu (obvykle bílá nebo světlá).',
     
     contrastLabel: 'Kontrast',

@@ -71,6 +71,22 @@ const getContrastRatio = (hex1: string, hex2: string): number => {
   }
 };
 
+export interface ColorScheme {
+  id: string;
+  name: string;
+  textColorMain: string;
+  textColorSecondary: string;
+  colorBg: string;
+  colorSurface: string;
+  colorAccent: string;
+  colorTextTitle: string;
+  colorTextLink: string;
+  colorTextStatus: string;
+  colorTextButton: string;
+  colorTextButtonPrimary: string;
+  colorTextBadge: string;
+}
+
 export interface GameSettings {
   id: string;
   gameName: string;
@@ -87,6 +103,15 @@ export interface GameSettings {
   fullWindowBackground: boolean;
   textColorMain?: string;
   textColorSecondary?: string;
+  colorBg?: string;
+  colorSurface?: string;
+  colorAccent?: string;
+  colorTextTitle?: string;
+  colorTextLink?: string;
+  colorTextStatus?: string;
+  colorTextButton?: string;
+  colorTextButtonPrimary?: string;
+  colorTextBadge?: string;
 }
 
 const getAutosaveValue = (key: string, defaultValue: any) => {
@@ -134,9 +159,24 @@ export default function App() {
   const [supportText, setSupportText] = useState(() => getAutosaveValue('supportText', 'Investuj do slovenčiny v hrách'));
   const [textColorMain, setTextColorMain] = useState(() => getAutosaveValue('textColorMain', '#F5F7F2'));
   const [textColorSecondary, setTextColorSecondary] = useState(() => getAutosaveValue('textColorSecondary', '#919B82'));
+  const [colorBg, setColorBg] = useState(() => getAutosaveValue('colorBg', '#111111'));
+  const [colorSurface, setColorSurface] = useState(() => getAutosaveValue('colorSurface', '#222222'));
+  const [colorAccent, setColorAccent] = useState(() => getAutosaveValue('colorAccent', '#3E4B37'));
+  const [colorTextTitle, setColorTextTitle] = useState(() => getAutosaveValue('colorTextTitle', '#F5F7F2'));
+  const [colorTextLink, setColorTextLink] = useState(() => getAutosaveValue('colorTextLink', '#FCEE0A'));
+  const [colorTextStatus, setColorTextStatus] = useState(() => getAutosaveValue('colorTextStatus', '#919B82'));
+  const [colorTextButton, setColorTextButton] = useState(() => getAutosaveValue('colorTextButton', '#F5F7F2'));
+  const [colorTextButtonPrimary, setColorTextButtonPrimary] = useState(() => getAutosaveValue('colorTextButtonPrimary', '#F5F7F2'));
+  const [colorTextBadge, setColorTextBadge] = useState(() => getAutosaveValue('colorTextBadge', '#F5F7F2'));
+  const [showAdvancedColors, setShowAdvancedColors] = useState(false);
+  const [savedSchemes, setSavedSchemes] = useState<ColorScheme[]>(() => {
+    const saved = localStorage.getItem('aegis_installer_saved_schemes');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [newSchemeName, setNewSchemeName] = useState('');
 
-  const contrastRatioMain = getContrastRatio(textColorMain, '#111111');
-  const contrastRatioSec = getContrastRatio(textColorSecondary, '#111111');
+  const contrastRatioMain = getContrastRatio(textColorMain, colorBg);
+  const contrastRatioSec = getContrastRatio(textColorSecondary, colorBg);
   const [bannerPreview, setBannerPreview] = useState<string | null>(null);
   const [bannerFile, setBannerFile] = useState<File | null>(null);
   const [fullWindowBackground, setFullWindowBackground] = useState(() => getAutosaveValue('fullWindowBackground', true));
@@ -269,6 +309,15 @@ export default function App() {
       supportText,
       textColorMain,
       textColorSecondary,
+      colorBg,
+      colorSurface,
+      colorAccent,
+      colorTextTitle,
+      colorTextLink,
+      colorTextStatus,
+      colorTextButton,
+      colorTextButtonPrimary,
+      colorTextBadge,
       fullWindowBackground,
     };
     localStorage.setItem('aegis_installer_autosave', JSON.stringify(data));
@@ -286,6 +335,15 @@ export default function App() {
     supportText,
     textColorMain,
     textColorSecondary,
+    colorBg,
+    colorSurface,
+    colorAccent,
+    colorTextTitle,
+    colorTextLink,
+    colorTextStatus,
+    colorTextButton,
+    colorTextButtonPrimary,
+    colorTextBadge,
     fullWindowBackground,
   ]);
 
@@ -408,6 +466,123 @@ export default function App() {
     }
   };
 
+  const saveCurrentScheme = () => {
+    if (!newSchemeName.trim()) return;
+    const newScheme: ColorScheme = {
+      id: Date.now().toString(),
+      name: newSchemeName.trim(),
+      textColorMain,
+      textColorSecondary,
+      colorBg,
+      colorSurface,
+      colorAccent,
+      colorTextTitle,
+      colorTextLink,
+      colorTextStatus,
+      colorTextButton,
+      colorTextButtonPrimary,
+      colorTextBadge
+    };
+    const updated = [...savedSchemes, newScheme];
+    setSavedSchemes(updated);
+    localStorage.setItem('aegis_installer_saved_schemes', JSON.stringify(updated));
+    setNewSchemeName('');
+  };
+
+  const deleteScheme = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const updated = savedSchemes.filter(s => s.id !== id);
+    setSavedSchemes(updated);
+    localStorage.setItem('aegis_installer_saved_schemes', JSON.stringify(updated));
+  };
+
+  const applyScheme = (scheme: ColorScheme) => {
+    setTextColorMain(scheme.textColorMain);
+    setTextColorSecondary(scheme.textColorSecondary);
+    setColorBg(scheme.colorBg);
+    setColorSurface(scheme.colorSurface);
+    setColorAccent(scheme.colorAccent);
+    setColorTextTitle(scheme.colorTextTitle || scheme.textColorMain);
+    setColorTextLink(scheme.colorTextLink || scheme.textColorSecondary);
+    setColorTextStatus(scheme.colorTextStatus || scheme.textColorSecondary);
+    setColorTextButton(scheme.colorTextButton || scheme.textColorMain);
+    setColorTextButtonPrimary(scheme.colorTextButtonPrimary || scheme.textColorMain);
+    setColorTextBadge(scheme.colorTextBadge || scheme.textColorMain);
+  };
+
+  const generateRandomScheme = () => {
+    const isDark = Math.random() > 0.5;
+    
+    // random component function
+    const rc = (min: number, max: number) => {
+      let r, g, b, lum;
+      do {
+         r = Math.floor(Math.random() * 256);
+         g = Math.floor(Math.random() * 256);
+         b = Math.floor(Math.random() * 256);
+         lum = getRelativeLuminance(r, g, b);
+      } while (lum < min || lum > max);
+      return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`.toUpperCase();
+    };
+
+    const localHexToRgb = (hex: string) => {
+      const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+      return result ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16)
+      } : { r: 0, g: 0, b: 0 };
+    };
+    
+    let bg, surface, accent, main, sec, title, link, status, btn, btnPri, badge;
+    
+    if (isDark) {
+       bg = rc(0.0, 0.05);
+       surface = rc(0.02, 0.08);
+       accent = rc(0.15, 0.4);
+       
+       main = rc(0.7, 1.0);
+       sec = rc(0.4, 0.7);
+       title = rc(0.8, 1.0);
+       link = rc(0.6, 1.0);
+       status = rc(0.4, 0.7);
+       btn = rc(0.7, 1.0);
+       // check contrast for primary text on accent
+       const accentRgb = localHexToRgb(accent);
+       const accentLum = getRelativeLuminance(accentRgb.r, accentRgb.g, accentRgb.b);
+       btnPri = accentLum > 0.179 ? rc(0.0, 0.1) : rc(0.8, 1.0);
+       badge = accentLum > 0.179 ? rc(0.0, 0.1) : rc(0.8, 1.0);
+    } else {
+       bg = rc(0.8, 1.0);
+       surface = rc(0.9, 1.0);
+       accent = rc(0.2, 0.6);
+       
+       main = rc(0.0, 0.2);
+       sec = rc(0.2, 0.4);
+       title = rc(0.0, 0.15);
+       link = rc(0.1, 0.3);
+       status = rc(0.3, 0.5);
+       btn = rc(0.0, 0.2);
+       
+       const accentRgb = localHexToRgb(accent);
+       const accentLum = getRelativeLuminance(accentRgb.r, accentRgb.g, accentRgb.b);
+       btnPri = accentLum > 0.179 ? rc(0.0, 0.1) : rc(0.8, 1.0);
+       badge = accentLum > 0.179 ? rc(0.0, 0.1) : rc(0.8, 1.0);
+    }
+
+    setColorBg(bg);
+    setColorSurface(surface);
+    setColorAccent(accent);
+    setTextColorMain(main);
+    setTextColorSecondary(sec);
+    setColorTextTitle(title);
+    setColorTextLink(link);
+    setColorTextStatus(status);
+    setColorTextButton(btn);
+    setColorTextButtonPrimary(btnPri);
+    setColorTextBadge(badge);
+  };
+
   const generatePowerShellScript = () => {
     const eName = escapeXml(gameName);
     const eAuthor = escapeXml(author);
@@ -416,6 +591,25 @@ export default function App() {
     const eValidationPath = escapeXml(validationPath);
     const eColorMain = escapeXml(textColorMain || '#F5F7F2');
     const eColorSecondary = escapeXml(textColorSecondary || '#919B82');
+    const eColorBg = escapeXml(colorBg || '#111111');
+    const eColorSurface = escapeXml(colorSurface || '#222222');
+    const eColorAccent = escapeXml(colorAccent || '#3E4B37');
+    const eColorTitle = escapeXml(colorTextTitle || eColorMain);
+    const eColorLink = escapeXml(colorTextLink || eColorSecondary);
+    const eColorStatus = escapeXml(colorTextStatus || eColorSecondary);
+    const eColorButton = escapeXml(colorTextButton || eColorMain);
+    const eColorButtonPrimary = escapeXml(colorTextButtonPrimary || eColorMain);
+    const eColorBadge = escapeXml(colorTextBadge || eColorMain);
+    
+    // Calculate gradients based on colorBg
+    const bgHex = eColorBg.replace('#', '');
+    const bgSolid = `#FF${bgHex}`;
+    const bgSemiTrans = `#EE${bgHex}`;
+    const bgHover = `#44000000`; // Could also be tailored, keeping generic black overlay for now
+
+    const accentHex = eColorAccent.replace('#', '');
+    const accentHover = `#4C${accentHex}`; // Some translucency
+
     const eSupportText = escapeXml(supportText || t.supportTextInput);
     const eChangelog = escapeXml(changelog || '');
 
@@ -449,7 +643,7 @@ try {
         AllowsTransparency="True"
         Background="Transparent"
         ResizeMode="NoResize">
-    <Border CornerRadius="12" Background="#111111">
+    <Border CornerRadius="12" Background="${eColorBg}">
         <Border.Clip>
             <RectangleGeometry RadiusX="12" RadiusY="12" Rect="0,0,540,460"/>
         </Border.Clip>
@@ -464,13 +658,13 @@ try {
             <Rectangle Grid.Row="0" ${fullWindowBackground ? 'Grid.RowSpan="2"' : ''}>
                 <Rectangle.Fill>
                     <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                        <GradientStop Color="#00111111" Offset="0.0"/>
-                        <GradientStop Color="${fullWindowBackground ? '#EE111111' : '#FF111111'}" Offset="${fullWindowBackground ? '0.6' : '1.0'}"/>
+                        <GradientStop Color="#00${bgHex}" Offset="0.0"/>
+                        <GradientStop Color="${fullWindowBackground ? bgSemiTrans : bgSolid}" Offset="${fullWindowBackground ? '0.6' : '1.0'}"/>
                     </LinearGradientBrush>
                 </Rectangle.Fill>
             </Rectangle>
 
-            <Button Name="CloseButtonTop" Content="✕" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="10" Width="30" Height="30" Background="#44000000" Foreground="${eColorMain}" BorderThickness="0" FontSize="14" Cursor="Hand" Grid.Row="0"/>
+            <Button Name="CloseButtonTop" Content="✕" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="10" Width="30" Height="30" Background="${bgHover}" Foreground="${eColorButton}" BorderThickness="0" FontSize="14" Cursor="Hand" Grid.Row="0"/>
             
             <StackPanel Grid.Row="1" Margin="30,20,30,20" Background="Transparent">
             <Grid Margin="0,0,0,20">
@@ -481,21 +675,21 @@ try {
                 <StackPanel Grid.Column="0">
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
                         <Image Name="WindowIconImage" Width="22" Height="22" Margin="0,0,8,0" VerticalAlignment="Center" Visibility="Collapsed"/>
-                        <TextBlock Text="${scriptInstallerTitle}" FontSize="18" FontWeight="Light" Foreground="${eColorMain}" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                        <TextBlock Text="${scriptInstallerTitle}" FontSize="18" FontWeight="Light" Foreground="${eColorTitle}" TextWrapping="Wrap" VerticalAlignment="Center"/>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,2">
                         <TextBlock Text="${t.scriptAuthor} " FontSize="12" Foreground="${eColorSecondary}"/>
-                        <TextBlock Name="AuthorLink" Text="${eAuthor}" FontSize="12" Foreground="${eColorMain}" TextDecorations="Underline" Cursor="Hand"/>
+                        <TextBlock Name="AuthorLink" Text="${eAuthor}" FontSize="12" Foreground="${eColorLink}" TextDecorations="Underline" Cursor="Hand"/>
                     </StackPanel>
                     <TextBlock Text="${t.scriptForGameVersion} ${eGameVersion}" FontSize="12" Foreground="${eColorSecondary}" Margin="0,0,0,4"/>
-                    <TextBlock Name="WebLink" Text="${t.scriptTranslationPage}" TextDecorations="Underline" Foreground="${eColorMain}" FontSize="12" Cursor="Hand"/>
+                    <TextBlock Name="WebLink" Text="${t.scriptTranslationPage}" TextDecorations="Underline" Foreground="${eColorLink}" FontSize="12" Cursor="Hand"/>
                     <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                        <TextBlock Name="SupportLink" Text="${eSupportText}" TextDecorations="Underline" Foreground="${eColorMain}" FontSize="11" Margin="0,0,10,0" Cursor="Hand"/>
-                        <TextBlock Name="ChangelogLink" Text="${t.scriptShowNews}" TextDecorations="Underline" Foreground="${eColorMain}" FontSize="11" Cursor="Hand"/>
+                        <TextBlock Name="SupportLink" Text="${eSupportText}" TextDecorations="Underline" Foreground="${eColorLink}" FontSize="11" Margin="0,0,10,0" Cursor="Hand"/>
+                        <TextBlock Name="ChangelogLink" Text="${t.scriptShowNews}" TextDecorations="Underline" Foreground="${eColorLink}" FontSize="11" Cursor="Hand"/>
                     </StackPanel>
                 </StackPanel>
-                <Border Grid.Column="1" Background="#4C3E4B37" BorderBrush="#3E4B37" BorderThickness="1" CornerRadius="4" Padding="8,4" VerticalAlignment="Top">
-                    <TextBlock Text="${eTranVersion}" FontSize="10" Foreground="${eColorMain}"/>
+                <Border Grid.Column="1" Background="${accentHover}" BorderBrush="${eColorAccent}" BorderThickness="1" CornerRadius="4" Padding="8,4" VerticalAlignment="Top">
+                    <TextBlock Text="${eTranVersion}" FontSize="10" Foreground="${eColorBadge}"/>
                 </Border>
             </Grid>
             
@@ -508,46 +702,46 @@ try {
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <TextBox Name="PathTextBox" Grid.Column="0" Height="32" FontSize="12" VerticalContentAlignment="Center" Background="#222222" Foreground="${eColorMain}" BorderBrush="#333333" BorderThickness="1" Padding="8,0,8,0"/>
-                <Button Name="BrowseButton" Content="${t.scriptBrowse}" Grid.Column="1" Width="100" Margin="10,0,0,0" Background="Transparent" Foreground="${eColorMain}" BorderBrush="#333333" BorderThickness="1" Cursor="Hand" FontSize="11" Height="32"/>
+                <TextBox Name="PathTextBox" Grid.Column="0" Height="32" FontSize="12" VerticalContentAlignment="Center" Background="${eColorSurface}" Foreground="${eColorMain}" BorderBrush="${accentHover}" BorderThickness="1" Padding="8,0,8,0"/>
+                <Button Name="BrowseButton" Content="${t.scriptBrowse}" Grid.Column="1" Width="100" Margin="10,0,0,0" Background="Transparent" Foreground="${eColorButton}" BorderBrush="${accentHover}" BorderThickness="1" Cursor="Hand" FontSize="11" Height="32"/>
             </Grid>
             
             <Grid Margin="0,20,0,5">
-                <TextBlock Name="StatusText" Text="${t.scriptReady}" Foreground="${eColorSecondary}" FontSize="10" TextWrapping="NoWrap" HorizontalAlignment="Left"/>
-                <TextBlock Name="ProgressPercent" Text="0%" Foreground="${eColorSecondary}" FontSize="10" HorizontalAlignment="Right"/>
+                <TextBlock Name="StatusText" Text="${t.scriptReady}" Foreground="${eColorStatus}" FontSize="10" TextWrapping="NoWrap" HorizontalAlignment="Left"/>
+                <TextBlock Name="ProgressPercent" Text="0%" Foreground="${eColorStatus}" FontSize="10" HorizontalAlignment="Right"/>
             </Grid>
-            <ProgressBar Name="InstallProgress" Height="6" Minimum="0" Maximum="100" Background="#222222" Foreground="#3E4B37" BorderThickness="0" Margin="0,0,0,20" IsIndeterminate="False"/>
+            <ProgressBar Name="InstallProgress" Height="6" Minimum="0" Maximum="100" Background="${eColorSurface}" Foreground="${eColorAccent}" BorderThickness="0" Margin="0,0,0,20" IsIndeterminate="False"/>
             
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                <Button Name="UninstallButton" Content="${t.scriptUninstall}" Width="100" Height="32" Margin="0,0,10,0" Background="#993333" Foreground="${eColorMain}" BorderThickness="0" FontSize="12" FontWeight="Bold" Cursor="Hand" Visibility="Collapsed"/>
-                <Button Name="CloseButton" Content="${t.scriptClose}" Width="100" Height="32" Margin="0,0,10,0" Background="Transparent" Foreground="${eColorMain}" BorderBrush="#333333" BorderThickness="1" FontSize="12" Cursor="Hand"/>
-                <Button Name="InstallButton" Content="${t.scriptInstall}" Width="140" Height="32" Background="#3E4B37" Foreground="${eColorMain}" BorderThickness="0" FontSize="12" FontWeight="Bold" Cursor="Hand"/>
+                <Button Name="UninstallButton" Content="${t.scriptUninstall}" Width="100" Height="32" Margin="0,0,10,0" Background="#993333" Foreground="${eColorButton}" BorderThickness="0" FontSize="12" FontWeight="Bold" Cursor="Hand" Visibility="Collapsed"/>
+                <Button Name="CloseButton" Content="${t.scriptClose}" Width="100" Height="32" Margin="0,0,10,0" Background="Transparent" Foreground="${eColorButton}" BorderBrush="${accentHover}" BorderThickness="1" FontSize="12" Cursor="Hand"/>
+                <Button Name="InstallButton" Content="${t.scriptInstall}" Width="140" Height="32" Background="${eColorAccent}" Foreground="${eColorButtonPrimary}" BorderThickness="0" FontSize="12" FontWeight="Bold" Cursor="Hand"/>
             </StackPanel>
         </StackPanel>
 
         <Grid Name="QrOverlay" Visibility="Collapsed" Background="#CC000000" Grid.Row="0" Grid.RowSpan="2">
-            <Border Background="#1A1A1A" BorderBrush="#3E4B37" BorderThickness="1" CornerRadius="8" Margin="40" Padding="20" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <Border Background="${eColorSurface}" BorderBrush="${eColorAccent}" BorderThickness="1" CornerRadius="8" Margin="40" Padding="20" HorizontalAlignment="Center" VerticalAlignment="Center">
                 <StackPanel>
-                    <TextBlock Text="${t.scriptSupportTitle}" FontSize="16" FontWeight="Bold" Foreground="${eColorMain}" Margin="0,0,0,15" HorizontalAlignment="Center"/>
+                    <TextBlock Text="${t.scriptSupportTitle}" FontSize="16" FontWeight="Bold" Foreground="${eColorTitle}" Margin="0,0,0,15" HorizontalAlignment="Center"/>
                     <Image Name="QrImage" Width="200" Height="200" Stretch="Uniform" Margin="0,0,0,20"/>
-                    <Button Name="CloseQrButton" Content="${t.scriptClose}" Width="100" Height="30" Background="#3E4B37" Foreground="#F5F7F2" BorderThickness="0" FontSize="12" FontWeight="Bold" Cursor="Hand" HorizontalAlignment="Center"/>
+                    <Button Name="CloseQrButton" Content="${t.scriptClose}" Width="100" Height="30" Background="${eColorAccent}" Foreground="${eColorButtonPrimary}" BorderThickness="0" FontSize="12" FontWeight="Bold" Cursor="Hand" HorizontalAlignment="Center"/>
                 </StackPanel>
             </Border>
         </Grid>
 
         <Grid Name="ChangelogOverlay" Visibility="Collapsed" Background="#CC000000" Grid.Row="0" Grid.RowSpan="2">
-            <Border Background="#1A1A1A" BorderBrush="#3E4B37" BorderThickness="1" CornerRadius="8" Margin="40" Padding="20" MaxWidth="440" MaxHeight="300" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <Border Background="${eColorSurface}" BorderBrush="${eColorAccent}" BorderThickness="1" CornerRadius="8" Margin="40" Padding="20" MaxWidth="440" MaxHeight="300" HorizontalAlignment="Center" VerticalAlignment="Center">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
-                    <TextBlock Text="${t.scriptNewsTitle}" FontSize="16" FontWeight="Bold" Foreground="${eColorMain}" Margin="0,0,0,15" Grid.Row="0"/>
+                    <TextBlock Text="${t.scriptNewsTitle}" FontSize="16" FontWeight="Bold" Foreground="${eColorTitle}" Margin="0,0,0,15" Grid.Row="0"/>
                     <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,0,0,15">
                         <TextBlock Text="${eChangelog}" Foreground="${eColorSecondary}" FontSize="12" TextWrapping="Wrap"/>
                     </ScrollViewer>
-                    <Button Name="CloseChangelogButton" Content="${t.scriptClose}" Width="100" Height="30" Background="#3E4B37" Foreground="#F5F7F2" BorderThickness="0" FontSize="12" FontWeight="Bold" Cursor="Hand" HorizontalAlignment="Right" Grid.Row="2"/>
+                    <Button Name="CloseChangelogButton" Content="${t.scriptClose}" Width="100" Height="30" Background="${eColorAccent}" Foreground="${eColorButtonPrimary}" BorderThickness="0" FontSize="12" FontWeight="Bold" Cursor="Hand" HorizontalAlignment="Right" Grid.Row="2"/>
                 </Grid>
             </Border>
         </Grid>
@@ -1243,6 +1437,9 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
       fullWindowBackground,
       textColorMain,
       textColorSecondary,
+      colorBg,
+      colorSurface,
+      colorAccent,
     };
     
     setHistory(prev => {
@@ -1377,6 +1574,9 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                         setFullWindowBackground(item.fullWindowBackground || false);
                         setTextColorMain(item.textColorMain || '#F5F7F2');
                         setTextColorSecondary(item.textColorSecondary || '#919B82');
+                        setColorBg(item.colorBg || '#111111');
+                        setColorSurface(item.colorSurface || '#222222');
+                        setColorAccent(item.colorAccent || '#3E4B37');
                         setShowHistoryModal(false);
                       }}
                     >
@@ -1558,17 +1758,21 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                 <label className="block text-[9px] uppercase text-[#919B82] ml-1" title={(t as any).presetTooltip || ''}>{(t as any).presetInput}</label>
                 <select
                   value={
-                    (textColorMain.toUpperCase() === '#FFFFFF' && textColorSecondary.toUpperCase() === '#A0A0A0') ? 'dark' :
-                    (textColorMain.toUpperCase() === '#111111' && textColorSecondary.toUpperCase() === '#555555') ? 'light' :
-                    (textColorMain.toUpperCase() === '#FCEE0A' && textColorSecondary.toUpperCase() === '#00FFFF') ? 'cyberpunk' :
-                    (textColorMain.toUpperCase() === '#F5F7F2' && textColorSecondary.toUpperCase() === '#919B82') ? 'forest' : 'custom'
+                    (textColorMain.toUpperCase() === '#FFFFFF' && textColorSecondary.toUpperCase() === '#A0A0A0' && colorBg.toUpperCase() === '#141414' && colorSurface.toUpperCase() === '#222222' && colorAccent.toUpperCase() === '#333333') ? 'dark' :
+                    (textColorMain.toUpperCase() === '#111111' && textColorSecondary.toUpperCase() === '#555555' && colorBg.toUpperCase() === '#F5F5F5' && colorSurface.toUpperCase() === '#E0E0E0' && colorAccent.toUpperCase() === '#CCCCCC') ? 'light' :
+                    (textColorMain.toUpperCase() === '#FCEE0A' && textColorSecondary.toUpperCase() === '#00FFFF' && colorBg.toUpperCase() === '#101020' && colorSurface.toUpperCase() === '#202040' && colorAccent.toUpperCase() === '#FF003C') ? 'cyberpunk' :
+                    (textColorMain.toUpperCase() === '#F5F7F2' && textColorSecondary.toUpperCase() === '#919B82' && colorBg.toUpperCase() === '#111111' && colorSurface.toUpperCase() === '#222222' && colorAccent.toUpperCase() === '#3E4B37') ? 'forest' : 'custom'
                   }
                   onChange={(e) => {
                     const p = e.target.value;
-                    if (p === 'dark') { setTextColorMain('#FFFFFF'); setTextColorSecondary('#A0A0A0'); }
-                    else if (p === 'light') { setTextColorMain('#111111'); setTextColorSecondary('#555555'); }
-                    else if (p === 'cyberpunk') { setTextColorMain('#FCEE0A'); setTextColorSecondary('#00FFFF'); }
-                    else if (p === 'forest') { setTextColorMain('#F5F7F2'); setTextColorSecondary('#919B82'); }
+                    const r = (mc: string, sc: string, bg: string, sf: string, ac: string) => {
+                      setTextColorMain(mc); setTextColorSecondary(sc); setColorBg(bg); setColorSurface(sf); setColorAccent(ac);
+                      setColorTextTitle(mc); setColorTextLink(sc); setColorTextStatus(sc); setColorTextButton(mc); setColorTextButtonPrimary(mc); setColorTextBadge(mc);
+                    };
+                    if (p === 'dark') { r('#FFFFFF', '#A0A0A0', '#141414', '#222222', '#333333'); }
+                    else if (p === 'light') { r('#111111', '#555555', '#F5F5F5', '#E0E0E0', '#CCCCCC'); }
+                    else if (p === 'cyberpunk') { r('#FCEE0A', '#00FFFF', '#101020', '#202040', '#FF003C'); }
+                    else if (p === 'forest') { r('#F5F7F2', '#919B82', '#111111', '#222222', '#3E4B37'); }
                   }}
                   className="w-full bg-[#131A11] border border-[#3E4B37] text-[#F5F7F2] rounded-[4px] px-2 py-1.5 text-[11px] focus:outline-none focus:border-[#919B82] transition-colors"
                 >
@@ -1580,7 +1784,7 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-3 mb-2">
                 <div className="space-y-1">
                   <div className="flex items-center justify-between px-1">
                     <label className="block text-[9px] uppercase text-[#919B82]" title={t.textColorMainTooltip}>{t.textColorMainInput}</label>
@@ -1650,6 +1854,124 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                     />
                   </div>
                 </div>
+              </div>
+              
+              <div className="mt-1 mb-4">
+                <button 
+                  onClick={() => setShowAdvancedColors(!showAdvancedColors)}
+                  className="flex items-center justify-between w-full p-2 bg-[#172015] border border-[#3E4B37] rounded-[4px] text-[10px] uppercase font-bold tracking-wider text-[#919B82] hover:bg-[#1C271A] hover:text-[#F5F7F2] transition-colors"
+                >
+                  <span>{(t as any).advancedSettingsTitle}</span>
+                  <span className="text-xs transition-transform" style={{ transform: showAdvancedColors ? 'rotate(180deg)' : 'rotate(0)' }}>
+                    ▼
+                  </span>
+                </button>
+                
+                <AnimatePresence>
+                  {showAdvancedColors && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="pt-3 pb-1 px-1 grid grid-cols-2 gap-3 border-l-2 border-r-2 border-b-2 border-[#3E4B37] bg-[#10160F] rounded-b-[4px]">
+                        
+                        {[
+                          { l: (t as any).colorBgInput, v: colorBg, s: setColorBg },
+                          { l: (t as any).colorSurfaceInput, v: colorSurface, s: setColorSurface },
+                          { l: (t as any).colorAccentInput, v: colorAccent, s: setColorAccent },
+                          { l: (t as any).colorTextTitleInput, v: colorTextTitle, s: setColorTextTitle },
+                          { l: (t as any).colorTextLinkInput, v: colorTextLink, s: setColorTextLink },
+                          { l: (t as any).colorTextStatusInput, v: colorTextStatus, s: setColorTextStatus },
+                          { l: (t as any).colorTextButtonInput, v: colorTextButton, s: setColorTextButton },
+                          { l: (t as any).colorTextButtonPrimaryInput, v: colorTextButtonPrimary, s: setColorTextButtonPrimary },
+                          { l: (t as any).colorTextBadgeInput, v: colorTextBadge, s: setColorTextBadge }
+                        ].map((c) => (
+                          <div className="space-y-1 col-span-2 sm:col-span-1" key={c.l}>
+                            <label className="block text-[9px] uppercase text-[#919B82] ml-1">{c.l}</label>
+                            <div className="flex bg-[#131A11] border border-[#3E4B37] rounded-[4px] p-1 gap-2 items-center">
+                              <input
+                                type="color"
+                                value={c.v}
+                                onChange={(e) => c.s(e.target.value)}
+                                className="w-6 h-6 rounded shrink-0 bg-transparent cursor-pointer border-none p-0"
+                              />
+                              <input
+                                type="text"
+                                value={c.v}
+                                onChange={(e) => c.s(e.target.value.toUpperCase())}
+                                className="w-full bg-transparent text-[#F5F7F2] text-xs focus:outline-none uppercase font-mono"
+                                maxLength={7}
+                              />
+                            </div>
+                          </div>
+                        ))}
+
+                        <div className="space-y-1 col-span-2 mt-2 pt-2 border-t border-[#3E4B37]/50">
+                          <button
+                            onClick={generateRandomScheme}
+                            className="w-full py-1.5 bg-[#3E4B37]/30 hover:bg-[#3E4B37]/60 text-[#F5F7F2] text-xs font-bold rounded-[4px] transition-colors border border-[#3E4B37]"
+                          >
+                            {(t as any).randomSchemeButton || 'Generovať náhodnú schému'}
+                          </button>
+                        </div>
+
+                        <div className="space-y-1 col-span-2 mt-2 pt-2 border-t border-[#3E4B37]/50">
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={newSchemeName}
+                              onChange={(e) => setNewSchemeName(e.target.value)}
+                              placeholder={(t as any).saveSchemePlaceholder}
+                              className="flex-1 bg-[#131A11] border border-[#3E4B37] text-[#F5F7F2] rounded-[4px] px-2 py-1 text-xs focus:outline-none focus:border-[#919B82] transition-colors"
+                            />
+                            <button
+                              onClick={saveCurrentScheme}
+                              disabled={!newSchemeName.trim()}
+                              className="px-3 py-1 bg-[#3E4B37] hover:bg-[#4C5B43] disabled:opacity-50 disabled:cursor-not-allowed text-[#F5F7F2] text-xs font-bold rounded-[4px] transition-colors"
+                            >
+                              {(t as any).saveSchemeButton}
+                            </button>
+                          </div>
+                        </div>
+
+                        {savedSchemes.length > 0 && (
+                          <div className="space-y-2 col-span-2 mt-1 pt-2 border-t border-[#3E4B37]/50">
+                            <label className="block text-[9px] uppercase text-[#919B82] ml-1">{(t as any).savedSchemesTitle}</label>
+                            <div className="grid grid-cols-1 gap-2 max-h-[120px] overflow-y-auto custom-scrollbar pr-1">
+                              {savedSchemes.map(scheme => (
+                                <div key={scheme.id} className="flex items-center justify-between bg-[#131A11] border border-[#3E4B37] rounded-[4px] p-1.5 hover:bg-[#1A2416] transition-colors">
+                                  <button
+                                    onClick={() => applyScheme(scheme)}
+                                    className="flex-1 flex items-center gap-2 text-left text-[#F5F7F2] text-xs px-1 cursor-pointer hover:text-[#A8C789] transition-colors"
+                                  >
+                                    <div className="flex items-center gap-0.5" title="Text / Sec / Bg / Surf / Accent">
+                                      <div className="w-3 h-3 rounded-sm border border-black/50" style={{ backgroundColor: scheme.textColorMain }} />
+                                      <div className="w-3 h-3 rounded-sm border border-black/50" style={{ backgroundColor: scheme.textColorSecondary }} />
+                                      <div className="w-3 h-3 rounded-sm border border-white/20" style={{ backgroundColor: scheme.colorBg }} />
+                                      <div className="w-3 h-3 rounded-sm border border-white/20" style={{ backgroundColor: scheme.colorSurface }} />
+                                      <div className="w-3 h-3 rounded-sm border border-white/20" style={{ backgroundColor: scheme.colorAccent }} />
+                                    </div>
+                                    <span className="truncate max-w-[120px] font-medium">{scheme.name}</span>
+                                  </button>
+                                  <button
+                                    onClick={(e) => deleteScheme(scheme.id, e)}
+                                    title={(t as any).deleteSchemeTitle}
+                                    className="w-5 h-5 flex items-center justify-center text-[#919B82] hover:text-[#ef4444] hover:bg-[#ef4444]/10 rounded-sm transition-colors shrink-0"
+                                  >
+                                    ✕
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
 
               <div className="space-y-1">
@@ -1888,7 +2210,7 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
             Live Preview &bull; WPF Patcher Mockup
           </div>
           
-          <div className="w-full lg:w-[540px] h-auto lg:h-[460px] bg-[#111] rounded-[12px] overflow-hidden shadow-[0_25px_50px_-12px_rgba(0,0,0,0.7)] border border-[#333] flex flex-col scale-90 sm:scale-100 transition-transform origin-center relative">
+          <div className="w-full lg:w-[540px] h-auto lg:h-[460px] rounded-[12px] overflow-hidden shadow-[0_25px_50px_-12px_rgba(0,0,0,0.7)] border border-white/5 flex flex-col scale-90 sm:scale-100 transition-transform origin-center relative" style={{ backgroundColor: colorBg }}>
             
             {/* Full Window Background */}
             {fullWindowBackground && (
@@ -1905,12 +2227,12 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
             
             {/* Top Gradient Overlay */}
             {fullWindowBackground ? (
-              <div className="absolute inset-0 z-10 pointer-events-none bg-gradient-to-b from-[#111111]/0 via-[#111111]/[0.93] via-[60%] to-[#111111]/[0.93]"></div>
+              <div className="absolute inset-0 z-10 pointer-events-none" style={{ background: `linear-gradient(to bottom, ${colorBg}00, ${colorBg}ED 60%, ${colorBg}ED)` }}></div>
             ) : (
-              <div className="absolute top-0 left-0 right-0 h-[120px] lg:h-[140px] z-10 pointer-events-none bg-gradient-to-b from-[#111111]/0 to-[#111111]"></div>
+              <div className="absolute top-0 left-0 right-0 h-[120px] lg:h-[140px] z-10 pointer-events-none" style={{ background: `linear-gradient(to bottom, ${colorBg}00, ${colorBg})` }}></div>
             )}
 
-            <button className="absolute top-3 right-3 w-[30px] h-[30px] flex items-center justify-center bg-black/25 hover:bg-black/60 border-none rounded-sm z-30 transition-all hover:scale-105 font-bold text-sm cursor-pointer" style={{ color: textColorMain }}>
+            <button className="absolute top-3 right-3 w-[30px] h-[30px] flex items-center justify-center bg-black/25 hover:bg-black/60 border-none rounded-sm z-30 transition-all hover:scale-105 font-bold text-sm cursor-pointer" style={{ color: colorTextButton }}>
               ✕
             </button>
             
@@ -1935,11 +2257,11 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
             <div className="flex-1 px-6 py-5 lg:px-[30px] lg:py-[20px] flex flex-col z-20 relative bg-transparent">
               <div className="flex justify-between items-start mb-3 lg:mb-4">
                 <div className="space-y-1 overflow-hidden pr-2">
-                  <h4 className="text-base lg:text-lg font-light truncate w-full" style={{ color: textColorMain }}>Inštalácia Prekladu: {gameName || 'Nová Hra'}</h4>
+                  <h4 className="text-base lg:text-lg font-light truncate w-full" style={{ color: colorTextTitle }}>Inštalácia Prekladu: {gameName || 'Nová Hra'}</h4>
                   <p className="text-[11px] lg:text-xs truncate w-full flex gap-1" style={{ color: textColorSecondary }}>
                     <span>Autor:</span>
                     {authorLink ? (
-                      <a href={authorLink} target="_blank" rel="noopener noreferrer" className="underline hover:opacity-80 truncate" style={{ color: textColorMain }}>
+                      <a href={authorLink} target="_blank" rel="noopener noreferrer" className="underline hover:opacity-80 truncate" style={{ color: colorTextLink }}>
                         {author || 'Flego'}
                       </a>
                     ) : (
@@ -1947,7 +2269,7 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                     )}
                   </p>
                   <p className="text-[11px] lg:text-xs truncate w-full" style={{ color: textColorSecondary }}>Pre verziu hry: {gameVersion}</p>
-                  <a href={translationLink} target="_blank" rel="noopener noreferrer" className="text-[11px] lg:text-xs underline inline-block mt-1 truncate max-w-full hover:opacity-80 transition-opacity" style={{ color: textColorMain }}>
+                  <a href={translationLink} target="_blank" rel="noopener noreferrer" className="text-[11px] lg:text-xs underline inline-block mt-1 truncate max-w-full hover:opacity-80 transition-opacity" style={{ color: colorTextLink }}>
                     {t.previewTranslationHelp}
                   </a>
                   <div className="flex flex-row items-center gap-3 mt-1 overflow-hidden w-full">
@@ -1955,7 +2277,7 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                       <button 
                         onClick={() => setShowSupportQrMockup(true)}
                         className="text-[10px] lg:text-[11px] underline shrink-0 text-left truncate hover:opacity-80 transition-opacity" 
-                        style={{ color: textColorMain }}
+                        style={{ color: colorTextLink }}
                       >
                         {supportText}
                       </button>
@@ -1964,7 +2286,7 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                       <button 
                         onClick={() => setShowChangelogMockup(true)}
                         className="text-[10px] lg:text-[11px] underline shrink-0 text-left truncate hover:opacity-80 transition-opacity" 
-                        style={{ color: textColorMain }}
+                        style={{ color: colorTextLink }}
                       >
                         {t.previewShowNews}
                       </button>
@@ -1972,7 +2294,7 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                   </div>
                 </div>
                 <div className="text-right shrink-0">
-                  <span className="text-[9px] lg:text-[10px] bg-[#3E4B37]/30 px-2 py-1 rounded border border-[#3E4B37]" style={{ color: textColorMain }}>{translationVersion || 'v1.0.0'}</span>
+                  <span className="text-[9px] lg:text-[10px] px-2 py-1 rounded border" style={{ color: colorTextBadge, backgroundColor: `${colorAccent}4C`, borderColor: colorAccent }}>{translationVersion || 'v1.0.0'}</span>
                 </div>
               </div>
               
@@ -1982,10 +2304,10 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                   <span className="text-[10px] text-[#4A5A40] italic truncate flex-1">({t.previewValidation}: {validationPath})</span>
                 </div>
                 <div className="flex gap-2.5 items-center">
-                  <div className="flex-1 bg-[#222] border border-[#333] px-2 h-8 text-[11px] lg:text-xs flex items-center" style={{ color: textColorMain }}>
+                  <div className="flex-1 border px-2 h-8 text-[11px] lg:text-xs flex items-center" style={{ color: textColorMain, backgroundColor: colorSurface, borderColor: `${colorAccent}4C` }}>
                     
                   </div>
-                  <button className="w-[100px] h-8 bg-transparent border border-[#333] text-[11px] hover:bg-[#1a1a1a] cursor-pointer transition-all hover:border-[#555] hover:shadow-[0_0_8px_rgba(255,255,255,0.05)] shrink-0" style={{ color: textColorMain }}>
+                  <button className="w-[100px] h-8 bg-transparent border text-[11px] hover:bg-black/20 cursor-pointer transition-all hover:shadow-[0_0_8px_rgba(255,255,255,0.05)] shrink-0" style={{ color: colorTextButton, borderColor: `${colorAccent}4C` }}>
                     {t.previewBrowse}
                   </button>
                 </div>
@@ -1997,15 +2319,15 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                     <span>Pripravený na inštaláciu</span>
                     <span>0%</span>
                   </div>
-                  <div className="h-[6px] bg-[#222]">
-                    <div className="h-full w-0 bg-[#3E4B37]"></div>
+                  <div className="h-[6px]" style={{ backgroundColor: colorSurface }}>
+                    <div className="h-full w-0" style={{ backgroundColor: colorAccent }}></div>
                   </div>
                 </div>
                 <div className="flex gap-[10px] justify-end pb-1 lg:pb-0">
-                  <button className="w-[100px] h-8 bg-transparent border border-[#333] text-[11px] lg:text-xs hover:bg-[#1a1a1a] cursor-pointer transition-all hover:border-[#555] hover:shadow-[0_0_8px_rgba(255,255,255,0.05)]" style={{ color: textColorMain }}>
+                  <button className="w-[100px] h-8 bg-transparent border text-[11px] lg:text-xs hover:bg-black/20 cursor-pointer transition-all hover:shadow-[0_0_8px_rgba(255,255,255,0.05)]" style={{ color: textColorMain, borderColor: `${colorAccent}4C` }}>
                     {t.previewClose}
                   </button>
-                  <button className="w-[140px] h-8 bg-[#3E4B37] text-[11px] lg:text-xs font-bold border-none cursor-pointer hover:bg-[#4d5c44] transition-all hover:shadow-[0_0_12px_rgba(62,75,55,0.4)] hover:-translate-y-[1px]" style={{ color: textColorMain }}>
+                  <button className="w-[140px] h-8 text-[11px] lg:text-xs font-bold border-none cursor-pointer hover:opacity-90 transition-all hover:-translate-y-[1px]" style={{ color: textColorMain, backgroundColor: colorAccent }}>
                     {t.previewInstall}
                   </button>
                 </div>
@@ -2015,20 +2337,21 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
             {/* QR Overlay Mockup */}
             {showSupportQrMockup && (
               <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80">
-                <div className="bg-[#1A1A1A] border border-[#3E4B37] rounded-lg p-5 flex flex-col items-center shadow-2xl scale-[0.85] sm:scale-100 origin-center">
-                  <h3 className="text-base font-bold mb-4" style={{ color: textColorMain }}>Podpora Prekladu</h3>
+                <div className="border rounded-lg p-5 flex flex-col items-center shadow-2xl scale-[0.85] sm:scale-100 origin-center" style={{ backgroundColor: colorSurface, borderColor: colorAccent }}>
+                  <h3 className="text-base font-bold mb-4" style={{ color: colorTextTitle }}>Podpora Prekladu</h3>
                   <div className="w-[180px] h-[180px] lg:w-[200px] lg:h-[200px] flex items-center justify-center bg-transparent mb-5 border border-transparent">
                     {qrCodePreview && !qrLoadError ? (
                       <img src={qrCodePreview} alt="QR Code" className="w-full h-full object-contain" onError={() => setQrLoadError(true)} />
                     ) : (
-                      <span className="text-[#3E4B37] font-bold text-[10px] uppercase tracking-widest text-center">
+                      <span className="font-bold text-[10px] uppercase tracking-widest text-center" style={{ color: colorAccent }}>
                         {qrLoadError ? "⚠️ Chyba QR Kódu" : "Chýba QR Kód"}
                       </span>
                     )}
                   </div>
                   <button 
                     onClick={() => setShowSupportQrMockup(false)}
-                    className="w-[100px] h-[30px] bg-[#3E4B37] text-[#F5F7F2] font-bold text-xs border-none cursor-pointer hover:bg-[#4C5B43] transition-colors rounded"
+                    className="w-[100px] h-[30px] font-bold text-xs border-none cursor-pointer hover:opacity-90 transition-colors rounded"
+                    style={{ backgroundColor: colorAccent, color: colorTextButtonPrimary }}
                   >
                     {t.previewClose}
                   </button>
@@ -2039,8 +2362,8 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
             {/* Changelog Overlay Mockup */}
             {showChangelogMockup && (
               <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 p-6 lg:p-10">
-                <div className="bg-[#1A1A1A] border border-[#3E4B37] rounded-lg p-5 flex flex-col w-[90%] max-w-[440px] max-h-[300px] shadow-2xl scale-[0.95] sm:scale-100 origin-center">
-                  <h3 className="text-base font-bold mb-4 shrink-0" style={{ color: textColorMain }}>Novinky v tejto verzii</h3>
+                <div className="border rounded-lg p-5 flex flex-col w-[90%] max-w-[440px] max-h-[300px] shadow-2xl scale-[0.95] sm:scale-100 origin-center" style={{ backgroundColor: colorSurface, borderColor: colorAccent }}>
+                  <h3 className="text-base font-bold mb-4 shrink-0" style={{ color: colorTextTitle }}>Novinky v tejto verzii</h3>
                   <div className="flex-1 overflow-y-auto mb-4 custom-scrollbar pr-2 min-h-[100px]">
                     <p className="text-xs whitespace-pre-wrap leading-relaxed" style={{ color: textColorSecondary }}>
                       {changelog || "Žiadne novinky k zobrazeniu."}
@@ -2048,7 +2371,8 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                   </div>
                   <button 
                     onClick={() => setShowChangelogMockup(false)}
-                    className="w-[100px] h-[30px] bg-[#3E4B37] text-[#F5F7F2] font-bold text-xs border-none cursor-pointer hover:bg-[#4C5B43] transition-colors rounded self-end shrink-0"
+                    className="w-[100px] h-[30px] font-bold text-xs border-none cursor-pointer hover:opacity-90 transition-colors rounded self-end shrink-0"
+                    style={{ backgroundColor: colorAccent, color: colorTextButtonPrimary }}
                   >
                     {t.previewClose}
                   </button>
