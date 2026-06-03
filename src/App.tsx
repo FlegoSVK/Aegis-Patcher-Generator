@@ -703,7 +703,7 @@ try {
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <TextBox Name="PathTextBox" Grid.Column="0" Height="32" FontSize="12" VerticalContentAlignment="Center" Background="${eColorSurface}" Foreground="${eColorMain}" BorderBrush="${accentHover}" BorderThickness="1" Padding="8,0,8,0"/>
-                <Button Name="BrowseButton" Content="${t.scriptBrowse}" Grid.Column="1" Width="100" Margin="10,0,0,0" Background="Transparent" Foreground="${eColorButton}" BorderBrush="${accentHover}" BorderThickness="1" Cursor="Hand" FontSize="11" Height="32"/>
+                <Button Name="BrowseButton" Content="${t.scriptBrowse}" Grid.Column="1" Width="100" Margin="10,0,0,0" Background="${eColorSurface}" Foreground="${eColorButton}" BorderBrush="${eColorAccent}" BorderThickness="1" Cursor="Hand" FontSize="11" Height="32"/>
             </Grid>
             
             <Grid Margin="0,20,0,5">
@@ -714,7 +714,7 @@ try {
             
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                 <Button Name="UninstallButton" Content="${t.scriptUninstall}" Width="100" Height="32" Margin="0,0,10,0" Background="#993333" Foreground="${eColorButton}" BorderThickness="0" FontSize="12" FontWeight="Bold" Cursor="Hand" Visibility="Collapsed"/>
-                <Button Name="CloseButton" Content="${t.scriptClose}" Width="100" Height="32" Margin="0,0,10,0" Background="Transparent" Foreground="${eColorButton}" BorderBrush="${accentHover}" BorderThickness="1" FontSize="12" Cursor="Hand"/>
+                <Button Name="CloseButton" Content="${t.scriptClose}" Width="100" Height="32" Margin="0,0,10,0" Background="${eColorSurface}" Foreground="${eColorButton}" BorderBrush="${eColorAccent}" BorderThickness="1" FontSize="12" Cursor="Hand"/>
                 <Button Name="InstallButton" Content="${t.scriptInstall}" Width="140" Height="32" Background="${eColorAccent}" Foreground="${eColorButtonPrimary}" BorderThickness="0" FontSize="12" FontWeight="Bold" Cursor="Hand"/>
             </StackPanel>
         </StackPanel>
@@ -2307,7 +2307,7 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                   <div className="flex-1 border px-2 h-8 text-[11px] lg:text-xs flex items-center" style={{ color: textColorMain, backgroundColor: colorSurface, borderColor: `${colorAccent}4C` }}>
                     
                   </div>
-                  <button className="w-[100px] h-8 bg-transparent border text-[11px] hover:bg-black/20 cursor-pointer transition-all hover:shadow-[0_0_8px_rgba(255,255,255,0.05)] shrink-0" style={{ color: colorTextButton, borderColor: `${colorAccent}4C` }}>
+                  <button className="w-[100px] h-8 border text-[11px] hover:opacity-80 cursor-pointer transition-all hover:shadow-[0_0_8px_rgba(255,255,255,0.05)] shrink-0" style={{ backgroundColor: colorSurface, color: colorTextButton, borderColor: colorAccent }}>
                     {t.previewBrowse}
                   </button>
                 </div>
@@ -2324,10 +2324,10 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                   </div>
                 </div>
                 <div className="flex gap-[10px] justify-end pb-1 lg:pb-0">
-                  <button className="w-[100px] h-8 bg-transparent border text-[11px] lg:text-xs hover:bg-black/20 cursor-pointer transition-all hover:shadow-[0_0_8px_rgba(255,255,255,0.05)]" style={{ color: textColorMain, borderColor: `${colorAccent}4C` }}>
+                  <button className="w-[100px] h-8 border text-[11px] lg:text-xs hover:opacity-80 cursor-pointer transition-all hover:shadow-[0_0_8px_rgba(255,255,255,0.05)]" style={{ backgroundColor: colorSurface, color: colorTextButton, borderColor: colorAccent }}>
                     {t.previewClose}
                   </button>
-                  <button className="w-[140px] h-8 text-[11px] lg:text-xs font-bold border-none cursor-pointer hover:opacity-90 transition-all hover:-translate-y-[1px]" style={{ color: textColorMain, backgroundColor: colorAccent }}>
+                  <button className="w-[140px] h-8 text-[11px] lg:text-xs font-bold border-none cursor-pointer hover:opacity-90 transition-all hover:-translate-y-[1px]" style={{ color: colorTextButtonPrimary, backgroundColor: colorAccent }}>
                     {t.previewInstall}
                   </button>
                 </div>
