@@ -643,6 +643,31 @@ try {
         AllowsTransparency="True"
         Background="Transparent"
         ResizeMode="NoResize">
+    <Window.Resources>
+        <Style TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Name="border" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="2">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Opacity" Value="0.8"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Opacity" Value="0.6"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="border" Property="Opacity" Value="0.4"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
     <Border CornerRadius="12" Background="${eColorBg}">
         <Border.Clip>
             <RectangleGeometry RadiusX="12" RadiusY="12" Rect="0,0,540,460"/>
@@ -1383,6 +1408,8 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
     text += `${(t as any).readmeInstStep3}\n`;
     text += `${(t as any).readmeInstStep4}\n`;
     text += `${(t as any).readmeInstStep5}\n`;
+    text += `\n${(t as any).readmeUpdateTitle}\n`;
+    text += `${(t as any).readmeUpdateText}\n`;
     text += `\n${(t as any).readmeUninstallTitle}\n`;
     text += `${(t as any).readmeUninstStep1}\n`;
     text += `${(t as any).readmeUninstStep2}\n`;
