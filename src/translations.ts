@@ -63,6 +63,9 @@ export const translations = {
     colorSurfaceInput: 'Farba Povrchu (Polia)',
     colorAccentInput: 'Farba Akcentu (Tlačidlá)',
     randomSchemeButton: 'Generovať náhodnú schému',
+    newProjectButton: 'Nový projekt',
+    duplicateWarning: 'Tento názov hry sa už nachádza v histórii.',
+    searchHistoryPlaceholder: 'Hľadať v histórii...',
     
     colorTextTitleInput: 'Farba Textu (Nadpis)',
     colorTextLinkInput: 'Farba Textu (Odkazy)',
@@ -248,6 +251,9 @@ export const translations = {
     colorSurfaceInput: 'Barva Povrchu (Pole)',
     colorAccentInput: 'Barva Akcentu (Tlačítka)',
     randomSchemeButton: 'Generovat náhodné schéma',
+    newProjectButton: 'Nový projekt',
+    duplicateWarning: 'Tento název hry se již nachází v historii.',
+    searchHistoryPlaceholder: 'Hledat v historii...',
     
     colorTextTitleInput: 'Barva Textu (Nadpis)',
     colorTextLinkInput: 'Barva Textu (Odkazy)',

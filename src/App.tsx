@@ -282,8 +282,42 @@ export default function App() {
   
   const [history, setHistory] = useState<GameSettings[]>([]);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [historySearch, setHistorySearch] = useState('');
   const [isCoreInfoExpanded, setIsCoreInfoExpanded] = useState(true);
   const [isMultimediaExpanded, setIsMultimediaExpanded] = useState(true);
+
+  const isDuplicateName = history.some(item => item.gameName.toLowerCase() === gameName.toLowerCase());
+
+  const resetToNewProject = () => {
+    setGameName('Nová Hra');
+    setAuthor('Flego');
+    setAuthorLink('https://komunitni-preklady.org/tym/flego');
+    setValidationPath('GameName');
+    setSteamAppId('');
+    setInstallRelativePath('');
+    setTranslationVersion('v1.0.0');
+    setChangelog('');
+    setGameVersion('1.0');
+    setTranslationLink('https://komunitni-preklady.org/');
+    setSupportText('Investuj do slovenčiny v hrách');
+    setTextColorMain('#F5F7F2');
+    setTextColorSecondary('#919B82');
+    setColorBg('#111111');
+    setColorSurface('#222222');
+    setColorAccent('#3E4B37');
+    setColorTextTitle('#F5F7F2');
+    setColorTextLink('#FCEE0A');
+    setColorTextStatus('#919B82');
+    setColorTextButton('#F5F7F2');
+    setColorTextButtonPrimary('#F5F7F2');
+    setColorTextBadge('#F5F7F2');
+    setBannerPreview(null);
+    setBannerFile(null);
+    setQrCodePreview(null);
+    setQrCodeFile(null);
+    setTranslationFiles([]);
+    setFullWindowBackground(true);
+  };
 
   useEffect(() => {
     const saved = localStorage.getItem('gameSettingsHistory');
@@ -1568,21 +1602,42 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
       {showHistoryModal && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
           <div className="bg-[#131A11] border border-[#3E4B37] rounded-xl shadow-2xl overflow-hidden max-w-[500px] w-full flex flex-col transform transition-all">
-            <div className="p-4 border-b border-[#3E4B37]/30 flex justify-between items-center bg-[#0D110C]">
-              <h3 className="text-[#F5F7F2] font-bold uppercase tracking-wider text-sm">{t.historyTitle}</h3>
-              <button 
-                onClick={() => setShowHistoryModal(false)}
-                className="text-[#919B82] hover:text-[#F5F7F2] transition-colors"
-                title={t.historyClose}
-              >
-                <X size={18} />
-              </button>
+            <div className="p-4 border-b border-[#3E4B37]/30 flex flex-col gap-3 bg-[#0D110C]">
+              <div className="flex justify-between items-center">
+                <h3 className="text-[#F5F7F2] font-bold uppercase tracking-wider text-sm">{t.historyTitle}</h3>
+                <button 
+                  onClick={() => { setShowHistoryModal(false); setHistorySearch(''); }}
+                  className="text-[#919B82] hover:text-[#F5F7F2] transition-colors"
+                  title={t.historyClose}
+                >
+                  <X size={18} />
+                </button>
+              </div>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={historySearch}
+                  onChange={(e) => setHistorySearch(e.target.value)}
+                  placeholder={(t as any).searchHistoryPlaceholder}
+                  className="w-full bg-[#131A11] border border-[#3E4B37] text-[#F5F7F2] rounded px-3 py-1.5 text-xs focus:outline-none focus:border-[#919B82] transition-colors"
+                />
+              </div>
             </div>
             <div className="p-4 max-h-[60vh] overflow-y-auto space-y-2 custom-scrollbar">
               {history.length === 0 ? (
                 <p className="text-[#919B82] text-sm text-center py-4 italic">{t.historyEmpty}</p>
+              ) : history.filter(item => 
+                  item.gameName.toLowerCase().includes(historySearch.toLowerCase()) || 
+                  item.author.toLowerCase().includes(historySearch.toLowerCase())
+                ).length === 0 ? (
+                <p className="text-[#919B82] text-sm text-center py-4 italic">Nenašli sa žiadne výsledky.</p>
               ) : (
-                history.map(item => (
+                history
+                  .filter(item => 
+                    item.gameName.toLowerCase().includes(historySearch.toLowerCase()) || 
+                    item.author.toLowerCase().includes(historySearch.toLowerCase())
+                  )
+                  .map(item => (
                   <div key={item.id} className="flex justify-between items-center bg-[#1A2416] border border-[#3E4B37]/50 hover:border-[#919B82] rounded p-3 transition-colors">
                     <div 
                       className="flex-1 cursor-pointer overflow-hidden mr-4" 
@@ -1640,6 +1695,13 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-[#3E4B37] rounded flex items-center justify-center font-bold text-sm">A</div>
           <h1 className="text-lg font-bold tracking-tight uppercase hidden md:block">Aegis <span className="text-[#919B82]">Patcher Generator</span></h1>
+          <button 
+            onClick={resetToNewProject}
+            className="ml-2 text-[10px] md:text-[11px] uppercase tracking-wider bg-[#3E4B37]/20 border border-[#3E4B37] text-[#F5F7F2] font-bold py-1 px-3 rounded hover:bg-[#3E4B37]/40 transition-colors flex items-center gap-2 cursor-pointer"
+          >
+            <Package size={14} />
+            {(t as any).newProjectButton}
+          </button>
         </div>
         <div className="flex items-center gap-4 md:gap-6 text-[9px] md:text-[11px] uppercase tracking-widest text-[#919B82]">
           <div className="flex bg-[#131A11] border border-[#3E4B37] rounded overflow-hidden">
@@ -1697,12 +1759,19 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                   >
                     <div className="px-4 pb-4 pt-1 space-y-3 border-t border-[#3E4B37]/20">
               <div className="space-y-1">
-                <label className="block text-[9px] uppercase text-[#919B82] ml-1" title={t.gameNameTooltip}>{t.gameNameInput}</label>
+                <label className="block text-[9px] uppercase text-[#919B82] ml-1 flex justify-between items-center" title={t.gameNameTooltip}>
+                  <span>{t.gameNameInput}</span>
+                  {isDuplicateName && (
+                    <span className="text-amber-500 font-bold animate-pulse">
+                      ⚠️ {(t as any).duplicateWarning}
+                    </span>
+                  )}
+                </label>
                 <input 
                   type="text" 
                   value={gameName}
                   onChange={(e) => setGameName(e.target.value)}
-                  className="w-full bg-[#131A11] border border-[#3E4B37] text-[#F5F7F2] rounded-[4px] px-2 py-1.5 text-xs focus:outline-none focus:border-[#919B82] transition-colors"
+                  className={`w-full bg-[#131A11] border ${isDuplicateName ? 'border-amber-500/50' : 'border-[#3E4B37]'} text-[#F5F7F2] rounded-[4px] px-2 py-1.5 text-xs focus:outline-none focus:border-[#919B82] transition-colors`}
                 />
               </div>
               
