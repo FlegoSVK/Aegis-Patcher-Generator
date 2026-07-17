@@ -4,8 +4,6 @@ export const translations = {
   sk: {
     // Header & Meta
     appTitle: 'Aegis Patcher Generator',
-    buildEngine: 'Build Engine v2.4.0',
-    session: 'Session:',
     historyBtn: 'História',
     
     // History Modal
@@ -17,6 +15,18 @@ export const translations = {
     historyDeleteSettings: 'Naozaj chcete vymazať nastavenia pre hru',
     historyDeleteBtn: 'Vymazať',
     
+    // Thank You Module
+    thankYouModuleSection: 'Záverečné poďakovanie',
+    enableThankYouModule: 'Zapnúť záverečné poďakovanie',
+    thankYouTextInput: 'Text poďakovania',
+    ibanInput: 'IBAN na podporu',
+    defaultThankYouText: 'Ďakujem, že hráš s mojím prekladom. Tvorbe komunitných lokalizácií venujem obrovské množstvo voľného času a mám neskutočnú radosť, že moje inštalátory oživili už 48 hier a pomohli viac ako 13 000 hráčom.\n\nAk ti moja práca urobila radosť a spríjemnila hru, budem veľmi vďačný za akúkoľvek podporu. Aj symbolické 1 € mi pomôže pokryť náklady na softvérové nástroje a "večernú" kávu pri ďalších projektoch. Uži si hru!',
+    thankYouBtnSupport: '💵 Podporiť slovenčiny v hrách',
+    thankYouBtnClose: '🎮 Zavrieť a hrať',
+    thankYouSupportTitle: 'Ďakujem za tvoju podporu! 💚',
+    thankYouSupportDesc: 'Pre rýchly príspevok stačí naskenovať QR kód v bankovej aplikácii.',
+    ibanCopied: 'IBAN skopírovaný',
+
     // Core Info Section
     coreInfoSection: 'Základné Informácie',
     
@@ -158,6 +168,7 @@ export const translations = {
     scriptCopying: 'Kopírujem:',
     scriptSuccess: 'Inštalácia bola úspešná!',
     scriptDone: 'Hotovo',
+    scriptZoom: 'Kliknutím zväčšíte QR kód',
     scriptFailTitle: 'Chyba',
     scriptCriticalErr: 'Kritická chyba inštalátora:',
     scriptBatchEcho: 'Spustam instalator prekladu...',
@@ -192,8 +203,6 @@ export const translations = {
   cz: {
     // Header & Meta
     appTitle: 'Aegis Patcher Generator',
-    buildEngine: 'Build Engine v2.4.0',
-    session: 'Session:',
     historyBtn: 'Historie',
     
     // History Modal
@@ -205,6 +214,18 @@ export const translations = {
     historyDeleteSettings: 'Opravdu chcete smazat nastavení pro hru',
     historyDeleteBtn: 'Smazat',
     
+    // Thank You Module
+    thankYouModuleSection: 'Závěrečné poděkování',
+    enableThankYouModule: 'Zapnout závěrečné poděkování',
+    thankYouTextInput: 'Text poděkování',
+    ibanInput: 'IBAN pro podporu',
+    defaultThankYouText: 'Děkuji, že hraješ s mým překladem. Tvorbě komunitních lokalizací věnuji obrovské množství volného času a mám neskutečnou radost, že moje instalátory oživily už 48 her a pomohly více než 13 000 hráčům.\n\nPokud ti moje práce udělala radost a zpříjemnila hru, budu velmi vděčný za jakoukoli podporu. I symbolické 1 € mi pomůže pokrýt náklady na softwarové nástroje a "večerní" kávu při dalších projektech. Užij si hru!',
+    thankYouBtnSupport: '💵 Podpořit češtiny ve hrách',
+    thankYouBtnClose: '🎮 Zavřít a hrát',
+    thankYouSupportTitle: 'Děkuji za tvou podporu! 💚',
+    thankYouSupportDesc: 'Pro rychlý příspěvek stačí naskenovat QR kód v bankovní aplikaci.',
+    ibanCopied: 'IBAN zkopírován',
+
     // Core Info Section
     coreInfoSection: 'Základní Informace',
     
@@ -346,6 +367,7 @@ export const translations = {
     scriptCopying: 'Kopíruji:',
     scriptSuccess: 'Instalace byla úspěšná!',
     scriptDone: 'Hotovo',
+    scriptZoom: 'Kliknutím zvětšíte QR kód',
     scriptFailTitle: 'Chyba',
     scriptCriticalErr: 'Kritická chyba instalátoru:',
     scriptBatchEcho: 'Spoustim instalator prekladu...',

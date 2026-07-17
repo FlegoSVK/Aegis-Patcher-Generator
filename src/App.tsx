@@ -11,7 +11,8 @@ import {
   Download,
   FolderOpen,
   ChevronDown,
-  X
+  X,
+  Copy
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ReactCrop, { type Crop, PixelCrop, centerCrop, makeAspectCrop } from 'react-image-crop';
@@ -112,6 +113,9 @@ export interface GameSettings {
   colorTextButton?: string;
   colorTextButtonPrimary?: string;
   colorTextBadge?: string;
+  enableThankYouModule?: boolean;
+  thankYouText?: string;
+  iban?: string;
 }
 
 const getAutosaveValue = (key: string, defaultValue: any) => {
@@ -180,8 +184,14 @@ export default function App() {
   const [bannerPreview, setBannerPreview] = useState<string | null>(null);
   const [bannerFile, setBannerFile] = useState<File | null>(null);
   const [fullWindowBackground, setFullWindowBackground] = useState(() => getAutosaveValue('fullWindowBackground', true));
+  
+  const [enableThankYouModule, setEnableThankYouModule] = useState(() => getAutosaveValue('enableThankYouModule', false));
+  const [thankYouText, setThankYouText] = useState(() => getAutosaveValue('thankYouText', (t as any).defaultThankYouText));
+  const [iban, setIban] = useState(() => getAutosaveValue('iban', ''));
+  
   const [translationFiles, setTranslationFiles] = useState<{file: File, path: string}[]>([]);
   const [isDragActive, setIsDragActive] = useState(false);
+  const [previewStep, setPreviewStep] = useState<1|2|3|4>(1);
 
   const traverseFileTree = (entry: any, path: string = ""): Promise<{file: File, path: string}[]> => {
     return new Promise((resolve) => {
@@ -278,8 +288,11 @@ export default function App() {
   const [qrLoadError, setQrLoadError] = useState(false);
   const [bannerLoadError, setBannerLoadError] = useState(false);
   const [showSupportQrMockup, setShowSupportQrMockup] = useState(false);
+  const [showFullscreenQrMockup, setShowFullscreenQrMockup] = useState(false);
   const [showChangelogMockup, setShowChangelogMockup] = useState(false);
+  const [showIbanCopied, setShowIbanCopied] = useState(false);
   
+  const [showValidationErrors, setShowValidationErrors] = useState(false);
   const [history, setHistory] = useState<GameSettings[]>([]);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [historySearch, setHistorySearch] = useState('');
@@ -317,6 +330,9 @@ export default function App() {
     setQrCodeFile(null);
     setTranslationFiles([]);
     setFullWindowBackground(true);
+    setEnableThankYouModule(false);
+    setThankYouText((t as any).defaultThankYouText);
+    setIban('');
   };
 
   useEffect(() => {
@@ -353,6 +369,9 @@ export default function App() {
       colorTextButtonPrimary,
       colorTextBadge,
       fullWindowBackground,
+      enableThankYouModule,
+      thankYouText,
+      iban,
     };
     localStorage.setItem('aegis_installer_autosave', JSON.stringify(data));
   }, [
@@ -379,6 +398,9 @@ export default function App() {
     colorTextButtonPrimary,
     colorTextBadge,
     fullWindowBackground,
+    enableThankYouModule,
+    thankYouText,
+    iban,
   ]);
 
   const [cropModalOpen, setCropModalOpen] = useState(false);
@@ -482,6 +504,7 @@ export default function App() {
 
   const handleFilesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
+      if(showValidationErrors) setShowValidationErrors(false);
       const newFiles = Array.from(e.target.files).map((f: File) => ({
         file: f,
         path: f.name
@@ -492,6 +515,7 @@ export default function App() {
 
   const handleFolderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
+      if(showValidationErrors) setShowValidationErrors(false);
       const newFiles = Array.from(e.target.files).map((f: File) => ({
         file: f,
         path: f.webkitRelativePath || f.name
@@ -647,6 +671,8 @@ export default function App() {
     const eSupportText = escapeXml(supportText || t.supportTextInput);
     const eChangelog = escapeXml(changelog || '');
 
+    const eThankYouText = escapeXml(thankYouText || '');
+    const eIban = escapeXml(iban || '');
     const psLink = translationLink.replace(/'/g, "''");
     const psAuthorLink = (authorLink || '').replace(/'/g, "''");
     const psValidationPath = validationPath.replace(/'/g, "''").trim();
@@ -762,7 +788,7 @@ try {
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <TextBox Name="PathTextBox" Grid.Column="0" Height="32" FontSize="12" VerticalContentAlignment="Center" Background="${eColorSurface}" Foreground="${eColorMain}" BorderBrush="${accentHover}" BorderThickness="1" Padding="8,0,8,0"/>
-                <Button Name="BrowseButton" Content="${t.scriptBrowse}" Grid.Column="1" Width="100" Margin="10,0,0,0" Background="${eColorSurface}" Foreground="${eColorButton}" BorderBrush="${eColorAccent}" BorderThickness="1" Cursor="Hand" FontSize="11" Height="32"/>
+                <Button Name="BrowseButton" Content="${t.scriptBrowse}" Grid.Column="1" Width="100" Margin="10,0,0,0" Background="${accentHover}" Foreground="${eColorButton}" BorderThickness="0" Cursor="Hand" FontSize="11" Height="32"/>
             </Grid>
             
             <Grid Margin="0,20,0,5">
@@ -773,7 +799,7 @@ try {
             
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                 <Button Name="UninstallButton" Content="${t.scriptUninstall}" Width="100" Height="32" Margin="0,0,10,0" Background="#993333" Foreground="${eColorButton}" BorderThickness="0" FontSize="12" FontWeight="Bold" Cursor="Hand" Visibility="Collapsed"/>
-                <Button Name="CloseButton" Content="${t.scriptClose}" Width="100" Height="32" Margin="0,0,10,0" Background="${eColorSurface}" Foreground="${eColorButton}" BorderBrush="${eColorAccent}" BorderThickness="1" FontSize="12" Cursor="Hand"/>
+                <Button Name="CloseButton" Content="${t.scriptClose}" Width="100" Height="32" Margin="0,0,10,0" Background="${accentHover}" Foreground="${eColorButton}" BorderThickness="0" FontSize="12" Cursor="Hand"/>
                 <Button Name="InstallButton" Content="${t.scriptInstall}" Width="140" Height="32" Background="${eColorAccent}" Foreground="${eColorButtonPrimary}" BorderThickness="0" FontSize="12" FontWeight="Bold" Cursor="Hand"/>
             </StackPanel>
         </StackPanel>
@@ -781,12 +807,35 @@ try {
         <Grid Name="QrOverlay" Visibility="Collapsed" Background="#CC000000" Grid.Row="0" Grid.RowSpan="2">
             <Border Background="${eColorSurface}" BorderBrush="${eColorAccent}" BorderThickness="1" CornerRadius="8" Margin="40" Padding="20" HorizontalAlignment="Center" VerticalAlignment="Center">
                 <StackPanel>
-                    <TextBlock Text="${t.scriptSupportTitle}" FontSize="16" FontWeight="Bold" Foreground="${eColorTitle}" Margin="0,0,0,15" HorizontalAlignment="Center"/>
-                    <Image Name="QrImage" Width="200" Height="200" Stretch="Uniform" Margin="0,0,0,20"/>
+                    <TextBlock Text="${(t as any).thankYouSupportTitle || t.scriptSupportTitle}" FontSize="16" FontWeight="Bold" Foreground="${eColorTitle}" Margin="0,0,0,5" HorizontalAlignment="Center"/>
+                    <TextBlock Text="${(t as any).thankYouSupportDesc}" FontSize="10" Foreground="${eColorSecondary}" Margin="0,0,0,15" HorizontalAlignment="Center" TextWrapping="Wrap" MaxWidth="250"/>
+                    ${qrCodeFile ? `<Image Name="QrImage" Width="160" Height="160" Stretch="Uniform" Margin="0,0,0,15" HorizontalAlignment="Center" Cursor="Hand" ToolTip="${t.scriptZoom}"/>` : ''}
+                    ${eIban ? `<StackPanel Margin="0,0,0,15">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="IBAN:" Foreground="${eColorSecondary}" FontSize="10" VerticalAlignment="Center"/>
+                            <TextBlock Name="IbanCopiedText" Text="${(t as any).ibanCopied}" Foreground="#4ade80" FontSize="10" VerticalAlignment="Center" Grid.Column="1" Visibility="Collapsed"/>
+                        </Grid>
+                        <Grid Margin="0,2,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="32"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox Name="IbanTextBox" Text="${eIban}" Background="${eColorBg}" Foreground="${eColorMain}" BorderBrush="${eColorAccent}" BorderThickness="1" Padding="4" IsReadOnly="True" FontSize="11" FontFamily="Consolas, monospace" Grid.Column="0"/>
+                            <Button Name="CopyIbanBtn" Content="📋" Background="${eColorSurface}" Foreground="${eColorMain}" BorderBrush="${eColorAccent}" BorderThickness="0,1,1,1" Grid.Column="1" Cursor="Hand" FontSize="12"/>
+                        </Grid>
+                    </StackPanel>` : ''}
                     <Button Name="CloseQrButton" Content="${t.scriptClose}" Width="100" Height="30" Background="${eColorAccent}" Foreground="${eColorButtonPrimary}" BorderThickness="0" FontSize="12" FontWeight="Bold" Cursor="Hand" HorizontalAlignment="Center"/>
                 </StackPanel>
             </Border>
         </Grid>
+
+        ${qrCodeFile ? `<Grid Name="QrFullscreenOverlay" Visibility="Collapsed" Background="#F2000000" Grid.Row="0" Grid.RowSpan="2" Cursor="Hand">
+            <Image Name="QrFullscreenImage" Stretch="Uniform" Margin="40"/>
+        </Grid>` : ''}
 
         <Grid Name="ChangelogOverlay" Visibility="Collapsed" Background="#CC000000" Grid.Row="0" Grid.RowSpan="2">
             <Border Background="${eColorSurface}" BorderBrush="${eColorAccent}" BorderThickness="1" CornerRadius="8" Margin="40" Padding="20" MaxWidth="440" MaxHeight="300" HorizontalAlignment="Center" VerticalAlignment="Center">
@@ -804,6 +853,23 @@ try {
                 </Grid>
             </Border>
         </Grid>
+
+        ${enableThankYouModule ? `<Grid Name="ThankYouOverlay" Visibility="Collapsed" Background="${fullWindowBackground ? bgSemiTrans : bgSolid}" Grid.Row="0" Grid.RowSpan="2">
+            <StackPanel Margin="30,40,30,30">
+                <TextBlock Text="${eName}" FontSize="24" FontWeight="Bold" Foreground="${eColorTitle}" Margin="0,0,0,20"/>
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Height="260" Margin="0,0,0,20">
+                    <TextBlock Text="${eThankYouText}" Foreground="${eColorSecondary}" FontSize="14" TextWrapping="Wrap"/>
+                </ScrollViewer>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Button Name="ThankYouCloseBtn" Content="${(t as any).thankYouBtnClose}" Grid.Column="0" Height="40" Margin="0,0,10,0" Background="${accentHover}" Foreground="${eColorButton}" BorderThickness="0" FontSize="13" Cursor="Hand"/>
+                    <Button Name="ThankYouSupportBtn" Content="${(t as any).thankYouBtnSupport}" Grid.Column="1" Height="40" Background="${eColorAccent}" Foreground="${eColorButtonPrimary}" BorderThickness="0" FontSize="13" FontWeight="Bold" Cursor="Hand" Visibility="${(qrCodeFile || eIban) ? 'Visible' : 'Collapsed'}"/>
+                </Grid>
+            </StackPanel>
+        </Grid>` : ''}
 
         </Grid>
     </Border>
@@ -846,8 +912,20 @@ try {
     $QrOverlay = $Form.FindName("QrOverlay")
     $QrImage = $Form.FindName("QrImage")
     $CloseQrButton = $Form.FindName("CloseQrButton")
+    
+    ${qrCodeFile ? `
+    $QrFullscreenOverlay = $Form.FindName("QrFullscreenOverlay")
+    $QrFullscreenImage = $Form.FindName("QrFullscreenImage")
+    ` : ''}
+
     $ChangelogOverlay = $Form.FindName("ChangelogOverlay")
     $CloseChangelogButton = $Form.FindName("CloseChangelogButton")
+    
+    ${enableThankYouModule ? `
+    $ThankYouOverlay = $Form.FindName("ThankYouOverlay")
+    $ThankYouCloseBtn = $Form.FindName("ThankYouCloseBtn")
+    $ThankYouSupportBtn = $Form.FindName("ThankYouSupportBtn")
+    ` : ''}
 
     ${steamAppId ? `
     # Auto-detect game path via Steam App ID
@@ -935,11 +1013,22 @@ try {
     if ($QrImage -and (Test-Path $qrPath)) {
         try {
             $uri = New-Object System.Uri($qrPath)
-            $QrImage.Source = New-Object System.Windows.Media.Imaging.BitmapImage -ArgumentList $uri
+            $bmp = New-Object System.Windows.Media.Imaging.BitmapImage -ArgumentList $uri
+            $QrImage.Source = $bmp
+            ${qrCodeFile ? `if ($QrFullscreenImage) { $QrFullscreenImage.Source = $bmp }` : ''}
         } catch { }
     } else {
         if ($SupportLink) { $SupportLink.Visibility = "Collapsed" }
     }
+
+    ${qrCodeFile ? `
+    if ($QrImage -and $QrFullscreenOverlay) {
+        $QrImage.Add_MouseLeftButtonUp({ Show-Overlay $QrFullscreenOverlay })
+    }
+    if ($QrFullscreenOverlay) {
+        $QrFullscreenOverlay.Add_MouseLeftButtonUp({ Hide-Overlay $QrFullscreenOverlay })
+    }
+    ` : ''}
 
     function Show-Overlay($ov) {
         if (-not $ov) { return }
@@ -985,6 +1074,29 @@ try {
             Hide-Overlay $QrOverlay
         })
     }
+    
+    ${eIban ? `
+    $CopyIbanBtn = $Form.FindName("CopyIbanBtn")
+    $IbanTextBox = $Form.FindName("IbanTextBox")
+    $IbanCopiedText = $Form.FindName("IbanCopiedText")
+    
+    if ($CopyIbanBtn) {
+        $CopyIbanBtn.Add_Click({
+            try {
+                [System.Windows.Clipboard]::SetText($IbanTextBox.Text)
+                $IbanCopiedText.Visibility = "Visible"
+                
+                $script:ibanTimer = New-Object System.Windows.Threading.DispatcherTimer
+                $script:ibanTimer.Interval = [timespan]::FromSeconds(2)
+                $script:ibanTimer.Add_Tick({
+                    if ($IbanCopiedText) { $IbanCopiedText.Visibility = "Collapsed" }
+                    if ($script:ibanTimer) { $script:ibanTimer.Stop() }
+                })
+                $script:ibanTimer.Start()
+            } catch { }
+        })
+    }
+    ` : ''}
 
     if ([string]::IsNullOrWhiteSpace("${eChangelog}")) {
         if ($ChangelogLink) { $ChangelogLink.Visibility = "Collapsed" }
@@ -1054,6 +1166,11 @@ try {
 
     $CloseButtonTop.Add_Click({ $Form.Close() })
     $CloseButton.Add_Click({ $Form.Close() })
+
+    ${enableThankYouModule ? `
+    if ($ThankYouCloseBtn) { $ThankYouCloseBtn.Add_Click({ $Form.Close() }) }
+    if ($ThankYouSupportBtn) { $ThankYouSupportBtn.Add_Click({ Show-Overlay $QrOverlay }) }
+    ` : ''}
 
     ${steamAppId ? `
     function Update-WindowIcon {
@@ -1211,6 +1328,13 @@ try {
 
     $InstallButton.Add_Click({
         if ($InstallButton.Content -eq "${t.scriptDone}") {
+            ${enableThankYouModule ? `
+            if ($ThankYouOverlay) {
+                Show-Overlay $ThankYouOverlay
+                $InstallButton.Content = "..."
+                return
+            }
+            ` : ''}
             $Form.Close()
             return
         }
@@ -1455,10 +1579,14 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
   };
 
   const handleGenerate = async () => {
-    if (!gameName || !author || !translationVersion || !gameVersion || !translationLink || !validationPath) {
+    if (!gameName || !author || !translationVersion || !gameVersion || !translationLink || !validationPath || translationFiles.length === 0) {
+      setShowValidationErrors(true);
+      if (!isCoreInfoExpanded) setIsCoreInfoExpanded(true);
+      if (!isMultimediaExpanded) setIsMultimediaExpanded(true);
       alert(t.alertMissingFields);
       return;
     }
+    setShowValidationErrors(false);
 
     // Validation layer for large files and directory payloads
     const totalSizeBytes = translationFiles.reduce((acc, item) => acc + item.file.size, 0);
@@ -1501,6 +1629,15 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
       colorBg,
       colorSurface,
       colorAccent,
+      colorTextTitle,
+      colorTextLink,
+      colorTextStatus,
+      colorTextButton,
+      colorTextButtonPrimary,
+      colorTextBadge,
+      enableThankYouModule,
+      thankYouText,
+      iban,
     };
     
     setHistory(prev => {
@@ -1659,6 +1796,15 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                         setColorBg(item.colorBg || '#111111');
                         setColorSurface(item.colorSurface || '#222222');
                         setColorAccent(item.colorAccent || '#3E4B37');
+                        setColorTextTitle(item.colorTextTitle || '#F5F7F2');
+                        setColorTextLink(item.colorTextLink || '#FCEE0A');
+                        setColorTextStatus(item.colorTextStatus || '#919B82');
+                        setColorTextButton(item.colorTextButton || '#F5F7F2');
+                        setColorTextButtonPrimary(item.colorTextButtonPrimary || '#F5F7F2');
+                        setColorTextBadge(item.colorTextBadge || '#F5F7F2');
+                        setEnableThankYouModule(item.enableThankYouModule || false);
+                        setThankYouText(item.thankYouText || (t as any).defaultThankYouText);
+                        setIban(item.iban || '');
                         setShowHistoryModal(false);
                       }}
                     >
@@ -1724,9 +1870,7 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
           >
             {t.historyBtn}
           </button>
-          <span className="hidden sm:inline">{t.buildEngine}</span>
-          <span className="h-4 w-[1px] bg-[#3E4B37] hidden sm:inline"></span>
-          <span className="text-[#F5F7F2]">{t.session} {author || 'Flego'}</span>
+          <span className="hidden sm:inline opacity-50">Vytvoril: Flego</span>
         </div>
       </header>
 
@@ -1770,8 +1914,8 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                 <input 
                   type="text" 
                   value={gameName}
-                  onChange={(e) => setGameName(e.target.value)}
-                  className={`w-full bg-[#131A11] border ${isDuplicateName ? 'border-amber-500/50' : 'border-[#3E4B37]'} text-[#F5F7F2] rounded-[4px] px-2 py-1.5 text-xs focus:outline-none focus:border-[#919B82] transition-colors`}
+                  onChange={(e) => { setGameName(e.target.value); if(showValidationErrors) setShowValidationErrors(false); }}
+                  className={`w-full bg-[#131A11] border ${isDuplicateName ? 'border-amber-500/50' : showValidationErrors && !gameName ? 'border-red-500 bg-red-500/5' : 'border-[#3E4B37]'} text-[#F5F7F2] rounded-[4px] px-2 py-1.5 text-xs focus:outline-none focus:border-[#919B82] transition-colors`}
                 />
               </div>
               
@@ -1781,8 +1925,8 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                   <input 
                     type="text" 
                     value={author}
-                    onChange={(e) => setAuthor(e.target.value)}
-                    className="w-full bg-[#131A11] border border-[#3E4B37] text-[#F5F7F2] rounded-[4px] px-2 py-1.5 text-xs focus:outline-none focus:border-[#919B82] transition-colors"
+                    onChange={(e) => { setAuthor(e.target.value); if(showValidationErrors) setShowValidationErrors(false); }}
+                    className={`w-full bg-[#131A11] border ${showValidationErrors && !author ? 'border-red-500 bg-red-500/5' : 'border-[#3E4B37]'} text-[#F5F7F2] rounded-[4px] px-2 py-1.5 text-xs focus:outline-none focus:border-[#919B82] transition-colors`}
                   />
                 </div>
 
@@ -1803,8 +1947,8 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                   <input 
                     type="text" 
                     value={translationVersion}
-                    onChange={(e) => setTranslationVersion(e.target.value)}
-                    className="w-full bg-[#131A11] border border-[#3E4B37] text-[#F5F7F2] rounded-[4px] px-2 py-1.5 text-xs focus:outline-none focus:border-[#919B82] transition-colors"
+                    onChange={(e) => { setTranslationVersion(e.target.value); if(showValidationErrors) setShowValidationErrors(false); }}
+                    className={`w-full bg-[#131A11] border ${showValidationErrors && !translationVersion ? 'border-red-500 bg-red-500/5' : 'border-[#3E4B37]'} text-[#F5F7F2] rounded-[4px] px-2 py-1.5 text-xs focus:outline-none focus:border-[#919B82] transition-colors`}
                   />
                 </div>
                 
@@ -1813,8 +1957,8 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                   <input 
                     type="text" 
                     value={gameVersion}
-                    onChange={(e) => setGameVersion(e.target.value)}
-                    className="w-full bg-[#131A11] border border-[#3E4B37] text-[#F5F7F2] rounded-[4px] px-2 py-1.5 text-xs focus:outline-none focus:border-[#919B82] transition-colors"
+                    onChange={(e) => { setGameVersion(e.target.value); if(showValidationErrors) setShowValidationErrors(false); }}
+                    className={`w-full bg-[#131A11] border ${showValidationErrors && !gameVersion ? 'border-red-500 bg-red-500/5' : 'border-[#3E4B37]'} text-[#F5F7F2] rounded-[4px] px-2 py-1.5 text-xs focus:outline-none focus:border-[#919B82] transition-colors`}
                   />
                 </div>
               </div>
@@ -1824,8 +1968,8 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                 <input 
                   type="text" 
                   value={translationLink}
-                  onChange={(e) => setTranslationLink(e.target.value)}
-                  className="w-full bg-[#131A11] border border-[#3E4B37] text-[#F5F7F2] rounded-[4px] px-2 py-1.5 text-xs focus:outline-none focus:border-[#919B82] transition-colors"
+                  onChange={(e) => { setTranslationLink(e.target.value); if(showValidationErrors) setShowValidationErrors(false); }}
+                  className={`w-full bg-[#131A11] border ${showValidationErrors && !translationLink ? 'border-red-500 bg-red-500/5' : 'border-[#3E4B37]'} text-[#F5F7F2] rounded-[4px] px-2 py-1.5 text-xs focus:outline-none focus:border-[#919B82] transition-colors`}
                 />
               </div>
 
@@ -2075,9 +2219,9 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                 <input 
                   type="text" 
                   value={validationPath}
-                  onChange={(e) => setValidationPath(e.target.value)}
+                  onChange={(e) => { setValidationPath(e.target.value); if(showValidationErrors) setShowValidationErrors(false); }}
                   placeholder="napr. Crimson Desert"
-                  className="w-full bg-[#131A11] border border-[#3E4B37] text-[#F5F7F2] rounded-[4px] px-2 py-1.5 text-xs focus:outline-none focus:border-[#919B82] transition-colors font-mono"
+                  className={`w-full bg-[#131A11] border ${showValidationErrors && !validationPath ? 'border-red-500 bg-red-500/5' : 'border-[#3E4B37]'} text-[#F5F7F2] rounded-[4px] px-2 py-1.5 text-xs focus:outline-none focus:border-[#919B82] transition-colors font-mono`}
                 />
               </div>
 
@@ -2106,6 +2250,54 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                   </motion.div>
                 )}
               </AnimatePresence>
+          </section>
+
+          <section className="bg-[#131A11] border border-[#3E4B37]/30 rounded-md shrink-0 focus-within:ring-1 focus-within:ring-[#3E4B37]/50">
+              <div className="w-full px-4 py-3 flex flex-col gap-3">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="enableThankYou"
+                    checked={enableThankYouModule}
+                    onChange={(e) => setEnableThankYouModule(e.target.checked)}
+                    className="w-4 h-4 rounded bg-[#0D110C] border-[#3E4B37] text-[#919B82] focus:ring-[#919B82] focus:ring-offset-[#131A11]"
+                  />
+                  <label htmlFor="enableThankYou" className="text-[11px] font-bold text-[#F5F7F2] uppercase tracking-wider cursor-pointer select-none">
+                    {(t as any).enableThankYouModule}
+                  </label>
+                </div>
+                
+                <AnimatePresence>
+                  {enableThankYouModule && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="space-y-3 overflow-hidden pt-2 border-t border-[#3E4B37]/20"
+                    >
+                      <div className="space-y-1">
+                        <label className="block text-[9px] uppercase text-[#919B82] ml-1">{(t as any).thankYouTextInput}</label>
+                        <textarea 
+                          value={thankYouText}
+                          onChange={(e) => setThankYouText(e.target.value)}
+                          className="w-full h-24 bg-[#131A11] border border-[#3E4B37] text-[#F5F7F2] rounded-[4px] px-2 py-1.5 text-xs focus:outline-none focus:border-[#919B82] transition-colors resize-none"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="block text-[9px] uppercase text-[#919B82] ml-1">{(t as any).ibanInput}</label>
+                        <input 
+                          type="text" 
+                          value={iban}
+                          onChange={(e) => setIban(e.target.value)}
+                          placeholder="SKXX XXXX XXXX XXXX XXXX XXXX"
+                          className="w-full bg-[#131A11] border border-[#3E4B37] text-[#F5F7F2] rounded-[4px] px-2 py-1.5 text-xs focus:outline-none focus:border-[#919B82] transition-colors font-mono"
+                        />
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
           </section>
 
           <section className="bg-[#131A11] border border-[#3E4B37]/30 rounded-md shrink-0 focus-within:ring-1 focus-within:ring-[#3E4B37]/50">
@@ -2197,12 +2389,14 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                 onDragEnter={handleDrag}
                 onDragOver={handleDrag}
                 onDragLeave={handleDrag}
-                onDrop={handleDrop}
+                onDrop={(e) => { handleDrop(e); if(showValidationErrors) setShowValidationErrors(false); }}
                 onClick={() => filesInputRef.current?.click()}
                 className={`border border-dashed rounded-md p-5 text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1.5 ${
                   isDragActive 
                     ? "border-[#919B82] bg-[#3E4B37]/20 text-[#F5F7F2]" 
-                    : "border-[#3E4B37] bg-[#131A11]/40 text-[#919B82] hover:bg-[#3E4B37]/10 hover:border-[#919B82]"
+                    : showValidationErrors && translationFiles.length === 0
+                      ? "border-red-500 bg-red-500/10 text-red-500"
+                      : "border-[#3E4B37] bg-[#131A11]/40 text-[#919B82] hover:bg-[#3E4B37]/10 hover:border-[#919B82]"
                 }`}
               >
                 <FolderOpen className="w-6 h-6 opacity-75 text-[#919B82]" />
@@ -2302,8 +2496,21 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
         
         {/* RIGHT: Mockup Preview */}
         <section className="bg-[#090C08] relative flex items-center justify-center p-4 lg:p-12 overflow-hidden flex-1 z-0 min-h-[600px] lg:min-h-0">
-          <div className="absolute top-8 left-10 text-[10px] uppercase tracking-widest text-[#3E4B37] font-bold hidden md:block">
-            Live Preview &bull; WPF Patcher Mockup
+          <div className="absolute top-8 left-10 hidden md:flex items-center gap-2 z-30">
+            <span className="text-[10px] uppercase tracking-widest text-[#3E4B37] font-bold mr-2">Live Preview</span>
+            {[1, 2, 3, 4].map(step => {
+              if (step === 3 && !enableThankYouModule) return null;
+              if (step === 4 && (!enableThankYouModule || (!qrCodePreview && !iban))) return null;
+              return (
+                <button 
+                  key={step}
+                  onClick={() => setPreviewStep(step as any)}
+                  className={`px-2 py-1 text-[9px] uppercase font-bold tracking-wider rounded border cursor-pointer transition-colors ${previewStep === step ? 'bg-[#3E4B37] text-white border-[#3E4B37]' : 'bg-transparent text-[#919B82] border-[#3E4B37]/50 hover:border-[#919B82]'}`}
+                >
+                  Krok {step}
+                </button>
+              )
+            })}
           </div>
           
           <div className="w-full lg:w-[540px] h-auto lg:h-[460px] rounded-[12px] overflow-hidden shadow-[0_25px_50px_-12px_rgba(0,0,0,0.7)] border border-white/5 flex flex-col scale-90 sm:scale-100 transition-transform origin-center relative" style={{ backgroundColor: colorBg }}>
@@ -2403,7 +2610,7 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                   <div className="flex-1 border px-2 h-8 text-[11px] lg:text-xs flex items-center" style={{ color: textColorMain, backgroundColor: colorSurface, borderColor: `${colorAccent}4C` }}>
                     
                   </div>
-                  <button className="w-[100px] h-8 border text-[11px] hover:opacity-80 cursor-pointer transition-all hover:shadow-[0_0_8px_rgba(255,255,255,0.05)] shrink-0" style={{ backgroundColor: colorSurface, color: colorTextButton, borderColor: colorAccent }}>
+                  <button className="w-[100px] h-8 border-none text-[11px] hover:opacity-80 cursor-pointer transition-all hover:shadow-[0_0_8px_rgba(255,255,255,0.05)] shrink-0 rounded-sm" style={{ backgroundColor: `${colorAccent}4C`, color: colorTextButton }}>
                     {t.previewBrowse}
                   </button>
                 </div>
@@ -2412,38 +2619,143 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
               <div className="mt-auto space-y-3 lg:space-y-[15px]">
                 <div className="space-y-[5px]">
                   <div className="flex justify-between text-[9px] lg:text-[10px]" style={{ color: textColorSecondary }}>
-                    <span>Pripravený na inštaláciu</span>
-                    <span>0%</span>
+                    <span>{previewStep === 2 ? 'Nainštalované' : 'Pripravený na inštaláciu'}</span>
+                    <span>{previewStep === 2 ? '100%' : '0%'}</span>
                   </div>
                   <div className="h-[6px]" style={{ backgroundColor: colorSurface }}>
-                    <div className="h-full w-0" style={{ backgroundColor: colorAccent }}></div>
+                    <div className={`h-full ${previewStep === 2 ? 'w-full' : 'w-0'}`} style={{ backgroundColor: colorAccent }}></div>
                   </div>
                 </div>
                 <div className="flex gap-[10px] justify-end pb-1 lg:pb-0">
-                  <button className="w-[100px] h-8 border text-[11px] lg:text-xs hover:opacity-80 cursor-pointer transition-all hover:shadow-[0_0_8px_rgba(255,255,255,0.05)]" style={{ backgroundColor: colorSurface, color: colorTextButton, borderColor: colorAccent }}>
+                  <button className={`w-[100px] h-8 border-none text-[11px] lg:text-xs cursor-pointer transition-all rounded-sm ${previewStep === 2 ? 'opacity-50 pointer-events-none' : 'hover:opacity-80 hover:shadow-[0_0_8px_rgba(255,255,255,0.05)]'}`} style={{ backgroundColor: `${colorAccent}4C`, color: colorTextButton }}>
                     {t.previewClose}
                   </button>
-                  <button className="w-[140px] h-8 text-[11px] lg:text-xs font-bold border-none cursor-pointer hover:opacity-90 transition-all hover:-translate-y-[1px]" style={{ color: colorTextButtonPrimary, backgroundColor: colorAccent }}>
-                    {t.previewInstall}
+                  <button className="w-[140px] h-8 text-[11px] lg:text-xs font-bold border-none cursor-pointer hover:opacity-90 transition-all hover:-translate-y-[1px] rounded-sm" style={{ color: colorTextButtonPrimary, backgroundColor: colorAccent }}>
+                    {previewStep === 2 ? 'HOTOVO' : t.previewInstall}
                   </button>
                 </div>
               </div>
             </div>
 
+            {/* Thank You Mockup (Step 3) */}
+            {previewStep === 3 && enableThankYouModule && (
+              <div className="absolute inset-0 z-40 p-6 lg:p-10 flex flex-col justify-center" style={{ backgroundColor: `${colorBg}F2` }}>
+                  <h3 className="text-xl lg:text-2xl font-bold mb-4" style={{ color: colorTextTitle }}>{gameName || 'Nová Hra'}</h3>
+                  <div className="flex-1 overflow-y-auto mb-4 custom-scrollbar pr-2">
+                    <p className="text-[12px] lg:text-sm leading-relaxed whitespace-pre-wrap" style={{ color: textColorSecondary }}>
+                      {thankYouText}
+                    </p>
+                  </div>
+                  <div className="flex gap-4 justify-between pt-4 mt-auto border-t" style={{ borderColor: `${colorAccent}4C` }}>
+                    <button className="flex-1 h-[36px] lg:h-10 border-none text-[10px] lg:text-[11px] hover:opacity-80 cursor-pointer transition-all hover:-translate-y-[1px] rounded" style={{ backgroundColor: `${colorAccent}4C`, color: colorTextButton }}>
+                      {(t as any).thankYouBtnClose}
+                    </button>
+                    {(qrCodePreview || iban) && (
+                      <button className="flex-1 h-[36px] lg:h-10 border-none text-[10px] lg:text-[11px] font-bold hover:opacity-90 cursor-pointer transition-all hover:-translate-y-[1px] rounded" style={{ backgroundColor: colorAccent, color: colorTextButtonPrimary }}>
+                        {(t as any).thankYouBtnSupport}
+                      </button>
+                    )}
+                  </div>
+              </div>
+            )}
+
+            {/* Support Mockup (Step 4) */}
+            {previewStep === 4 && enableThankYouModule && (qrCodePreview || iban) && (
+              <div className="absolute inset-0 z-50 p-6 lg:p-10 flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm">
+                <div className="border rounded-lg p-6 flex flex-col items-center shadow-2xl w-full max-w-[320px]" style={{ backgroundColor: colorSurface, borderColor: colorAccent }}>
+                  <h3 className="text-base font-bold mb-2 text-center" style={{ color: colorTextTitle }}>{(t as any).thankYouSupportTitle}</h3>
+                  <p className="text-[10px] text-center mb-5 opacity-80" style={{ color: textColorSecondary }}>{(t as any).thankYouSupportDesc}</p>
+                  
+                  {qrCodePreview && !qrLoadError && (
+                    <div 
+                      className="w-[140px] h-[140px] bg-white p-2 rounded mb-5 cursor-pointer hover:scale-105 transition-transform"
+                      onClick={() => setShowFullscreenQrMockup(true)}
+                    >
+                      <img src={qrCodePreview} alt="QR Code" className="w-full h-full object-contain pointer-events-none" />
+                    </div>
+                  )}
+                  
+                  {iban && (
+                    <div className="mb-6 w-full">
+                      <div className="flex justify-between items-center text-[9px] uppercase mb-1" style={{ color: textColorSecondary }}>
+                        <span>IBAN:</span>
+                      </div>
+                      <div className="flex items-center p-2 border rounded font-mono text-[11px] tracking-wider" style={{ borderColor: colorAccent, color: textColorMain, backgroundColor: colorBg }}>
+                        <span className="flex-1 text-center select-all">{iban}</span>
+                        <button 
+                          className="ml-2 hover:opacity-70 transition-opacity cursor-pointer relative flex-shrink-0"
+                          onClick={() => {
+                            navigator.clipboard.writeText(iban);
+                            setShowIbanCopied(true);
+                            setTimeout(() => setShowIbanCopied(false), 2000);
+                          }}
+                        >
+                          <Copy size={14} />
+                          {showIbanCopied && (
+                            <div className="absolute bottom-full right-0 mb-2 px-2 py-1 bg-white text-black font-bold text-[9px] rounded whitespace-nowrap shadow-lg">
+                              {(t as any).ibanCopied}
+                            </div>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <button className="w-[120px] h-8 border text-xs font-bold rounded hover:opacity-90 transition-all cursor-pointer" style={{ backgroundColor: colorAccent, color: colorTextButtonPrimary, borderColor: colorAccent }}>
+                    {(t as any).thankYouBtnClose}
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* QR Overlay Mockup */}
             {showSupportQrMockup && (
               <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80">
-                <div className="border rounded-lg p-5 flex flex-col items-center shadow-2xl scale-[0.85] sm:scale-100 origin-center" style={{ backgroundColor: colorSurface, borderColor: colorAccent }}>
-                  <h3 className="text-base font-bold mb-4" style={{ color: colorTextTitle }}>Podpora Prekladu</h3>
-                  <div className="w-[180px] h-[180px] lg:w-[200px] lg:h-[200px] flex items-center justify-center bg-transparent mb-5 border border-transparent">
+                <div className="border rounded-lg p-5 flex flex-col items-center shadow-2xl scale-[0.85] sm:scale-100 origin-center w-full max-w-[320px]" style={{ backgroundColor: colorSurface, borderColor: colorAccent }}>
+                  <h3 className="text-base font-bold mb-2" style={{ color: colorTextTitle }}>{enableThankYouModule && iban ? (t as any).thankYouSupportTitle : 'Podpora Prekladu'}</h3>
+                  {enableThankYouModule && iban && (
+                     <p className="text-[10px] text-center mb-5 opacity-80" style={{ color: textColorSecondary }}>{(t as any).thankYouSupportDesc}</p>
+                  )}
+                  
+                  <div 
+                    className={`w-[180px] h-[180px] lg:w-[160px] lg:h-[160px] flex items-center justify-center bg-white p-2 rounded mb-5 border border-transparent ${qrCodePreview && !qrLoadError ? 'cursor-pointer hover:scale-105 transition-transform' : ''}`}
+                    onClick={() => qrCodePreview && !qrLoadError && setShowFullscreenQrMockup(true)}
+                  >
                     {qrCodePreview && !qrLoadError ? (
-                      <img src={qrCodePreview} alt="QR Code" className="w-full h-full object-contain" onError={() => setQrLoadError(true)} />
+                      <img src={qrCodePreview} alt="QR Code" className="w-full h-full object-contain pointer-events-none" onError={() => setQrLoadError(true)} />
                     ) : (
-                      <span className="font-bold text-[10px] uppercase tracking-widest text-center" style={{ color: colorAccent }}>
-                        {qrLoadError ? "⚠️ Chyba QR Kódu" : "Chýba QR Kód"}
+                      <span className="font-bold text-[10px] uppercase tracking-widest text-center text-black">
+                        {qrLoadError ? "⚠️ Chyba QR" : "Chýba QR Kód"}
                       </span>
                     )}
                   </div>
+
+                  {enableThankYouModule && iban && (
+                    <div className="mb-6 w-full">
+                      <div className="flex justify-between items-center text-[9px] uppercase mb-1" style={{ color: textColorSecondary }}>
+                        <span>IBAN:</span>
+                      </div>
+                      <div className="flex items-center p-2 border rounded font-mono text-[11px] tracking-wider" style={{ borderColor: colorAccent, color: textColorMain, backgroundColor: colorBg }}>
+                        <span className="flex-1 text-center select-all">{iban}</span>
+                        <button 
+                          className="ml-2 hover:opacity-70 transition-opacity cursor-pointer relative flex-shrink-0"
+                          onClick={() => {
+                            navigator.clipboard.writeText(iban);
+                            setShowIbanCopied(true);
+                            setTimeout(() => setShowIbanCopied(false), 2000);
+                          }}
+                        >
+                          <Copy size={14} />
+                          {showIbanCopied && (
+                            <div className="absolute bottom-full right-0 mb-2 px-2 py-1 bg-white text-black font-bold text-[9px] rounded whitespace-nowrap shadow-lg">
+                              {(t as any).ibanCopied}
+                            </div>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   <button 
                     onClick={() => setShowSupportQrMockup(false)}
                     className="w-[100px] h-[30px] font-bold text-xs border-none cursor-pointer hover:opacity-90 transition-colors rounded"
@@ -2451,6 +2763,18 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                   >
                     {t.previewClose}
                   </button>
+                </div>
+              </div>
+            )}
+
+            {/* Fullscreen QR Overlay Mockup */}
+            {showFullscreenQrMockup && qrCodePreview && !qrLoadError && (
+              <div 
+                className="absolute inset-0 z-[60] flex items-center justify-center bg-black/95 cursor-pointer"
+                onClick={() => setShowFullscreenQrMockup(false)}
+              >
+                <div className="w-[80%] max-w-[400px] aspect-square bg-white p-4 rounded-xl">
+                  <img src={qrCodePreview} alt="QR Code Fullscreen" className="w-full h-full object-contain pointer-events-none" />
                 </div>
               </div>
             )}
