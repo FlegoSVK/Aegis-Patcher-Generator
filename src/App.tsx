@@ -804,7 +804,7 @@ try {
             </StackPanel>
         </StackPanel>
 
-        <Grid Name="QrOverlay" Visibility="Collapsed" Background="#CC000000" Grid.Row="0" Grid.RowSpan="2">
+        <Grid Name="QrOverlay" Visibility="Collapsed" Background="#CC000000" Grid.Row="0" Grid.RowSpan="2" Panel.ZIndex="100">
             <Border Background="${eColorSurface}" BorderBrush="${eColorAccent}" BorderThickness="1" CornerRadius="8" Margin="40" Padding="20" HorizontalAlignment="Center" VerticalAlignment="Center">
                 <StackPanel>
                     <TextBlock Text="${(t as any).thankYouSupportTitle || t.scriptSupportTitle}" FontSize="16" FontWeight="Bold" Foreground="${eColorTitle}" Margin="0,0,0,5" HorizontalAlignment="Center"/>
@@ -833,11 +833,11 @@ try {
             </Border>
         </Grid>
 
-        ${qrCodeFile ? `<Grid Name="QrFullscreenOverlay" Visibility="Collapsed" Background="#F2000000" Grid.Row="0" Grid.RowSpan="2" Cursor="Hand">
+        ${qrCodeFile ? `<Grid Name="QrFullscreenOverlay" Visibility="Collapsed" Background="#F2000000" Grid.Row="0" Grid.RowSpan="2" Cursor="Hand" Panel.ZIndex="110">
             <Image Name="QrFullscreenImage" Stretch="Uniform" Margin="40"/>
         </Grid>` : ''}
 
-        <Grid Name="ChangelogOverlay" Visibility="Collapsed" Background="#CC000000" Grid.Row="0" Grid.RowSpan="2">
+        <Grid Name="ChangelogOverlay" Visibility="Collapsed" Background="#CC000000" Grid.Row="0" Grid.RowSpan="2" Panel.ZIndex="100">
             <Border Background="${eColorSurface}" BorderBrush="${eColorAccent}" BorderThickness="1" CornerRadius="8" Margin="40" Padding="20" MaxWidth="440" MaxHeight="300" HorizontalAlignment="Center" VerticalAlignment="Center">
                 <Grid>
                     <Grid.RowDefinitions>
@@ -854,7 +854,7 @@ try {
             </Border>
         </Grid>
 
-        ${enableThankYouModule ? `<Grid Name="ThankYouOverlay" Visibility="Collapsed" Background="${fullWindowBackground ? bgSemiTrans : bgSolid}" Grid.Row="0" Grid.RowSpan="2">
+        ${enableThankYouModule ? `<Grid Name="ThankYouOverlay" Visibility="Collapsed" Background="${fullWindowBackground ? bgSemiTrans : bgSolid}" Grid.Row="0" Grid.RowSpan="2" Panel.ZIndex="50">
             <StackPanel Margin="30,40,30,30">
                 <TextBlock Text="${eName}" FontSize="24" FontWeight="Bold" Foreground="${eColorTitle}" Margin="0,0,0,20"/>
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Height="260" Margin="0,0,0,20">
@@ -2638,7 +2638,7 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
             </div>
 
             {/* Thank You Mockup (Step 3) */}
-            {previewStep === 3 && enableThankYouModule && (
+            {(previewStep === 3 || previewStep === 4) && enableThankYouModule && (
               <div className="absolute inset-0 z-40 p-6 lg:p-10 flex flex-col justify-center" style={{ backgroundColor: `${colorBg}F2` }}>
                   <h3 className="text-xl lg:text-2xl font-bold mb-4" style={{ color: colorTextTitle }}>{gameName || 'Nová Hra'}</h3>
                   <div className="flex-1 overflow-y-auto mb-4 custom-scrollbar pr-2">
