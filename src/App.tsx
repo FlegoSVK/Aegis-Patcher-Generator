@@ -330,9 +330,10 @@ export default function App() {
     setQrCodeFile(null);
     setTranslationFiles([]);
     setFullWindowBackground(true);
-    setEnableThankYouModule(false);
-    setThankYouText((t as any).defaultThankYouText);
-    setIban('');
+    // Zachovanie globálnych nastavení pre modul poďakovania
+    // setEnableThankYouModule(false); 
+    // setThankYouText((t as any).defaultThankYouText);
+    // setIban('');
   };
 
   useEffect(() => {
@@ -1802,9 +1803,10 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                         setColorTextButton(item.colorTextButton || '#F5F7F2');
                         setColorTextButtonPrimary(item.colorTextButtonPrimary || '#F5F7F2');
                         setColorTextBadge(item.colorTextBadge || '#F5F7F2');
-                        setEnableThankYouModule(item.enableThankYouModule || false);
-                        setThankYouText(item.thankYouText || (t as any).defaultThankYouText);
-                        setIban(item.iban || '');
+                        // Modul poďakovania a IBAN sa neprepisujú z histórie, aby ostali globálne
+                        // setEnableThankYouModule(item.enableThankYouModule || false);
+                        // setThankYouText(item.thankYouText || (t as any).defaultThankYouText);
+                        // setIban(item.iban || '');
                         setShowHistoryModal(false);
                       }}
                     >
