@@ -100,6 +100,7 @@ export interface GameSettings {
   supportText?: string;
   validationPath: string;
   steamAppId?: string;
+  gamePlatform?: 'steam' | 'xbox' | 'none';
   installRelativePath: string;
   fullWindowBackground: boolean;
   textColorMain?: string;
@@ -155,6 +156,7 @@ export default function App() {
   const [authorLink, setAuthorLink] = useState(() => getAutosaveValue('authorLink', 'https://komunitni-preklady.org/tym/flego'));
   const [validationPath, setValidationPath] = useState(() => getAutosaveValue('validationPath', 'GameName'));
   const [steamAppId, setSteamAppId] = useState(() => getAutosaveValue('steamAppId', ''));
+  const [gamePlatform, setGamePlatform] = useState<'steam' | 'xbox' | 'none'>(() => getAutosaveValue('gamePlatform', 'none'));
   const [installRelativePath, setInstallRelativePath] = useState(() => getAutosaveValue('installRelativePath', ''));
   const [translationVersion, setTranslationVersion] = useState(() => getAutosaveValue('translationVersion', 'v1.0.0'));
   const [changelog, setChangelog] = useState(() => getAutosaveValue('changelog', ''));
@@ -307,6 +309,7 @@ export default function App() {
     setAuthorLink('https://komunitni-preklady.org/tym/flego');
     setValidationPath('GameName');
     setSteamAppId('');
+    setGamePlatform('none');
     setInstallRelativePath('');
     setTranslationVersion('v1.0.0');
     setChangelog('');
@@ -352,6 +355,7 @@ export default function App() {
       authorLink,
       validationPath,
       steamAppId,
+      gamePlatform,
       installRelativePath,
       translationVersion,
       changelog,
@@ -381,6 +385,7 @@ export default function App() {
     authorLink,
     validationPath,
     steamAppId,
+    gamePlatform,
     installRelativePath,
     translationVersion,
     changelog,
@@ -676,8 +681,8 @@ export default function App() {
     const eIban = escapeXml(iban || '');
     const psLink = translationLink.replace(/'/g, "''");
     const psAuthorLink = (authorLink || '').replace(/'/g, "''");
-    const psValidationPath = validationPath.replace(/'/g, "''").trim();
-    const psInstallRelativePath = installRelativePath.replace(/'/g, "''").trim();
+    const psValidationPath = validationPath.replace(/'/g, "''").replace(/^[\\\/]+/, '').trim();
+    const psInstallRelativePath = installRelativePath.replace(/'/g, "''").replace(/^[\\\/]+/, '').trim();
 
     const scriptInstallerTitle = t.scriptInstallerTitle.replace('{name}', eName);
 
@@ -774,9 +779,13 @@ try {
                         <TextBlock Name="ChangelogLink" Text="${t.scriptShowNews}" TextDecorations="Underline" Foreground="${eColorLink}" FontSize="11" Cursor="Hand"/>
                     </StackPanel>
                 </StackPanel>
-                <Border Grid.Column="1" Background="${accentHover}" BorderBrush="${eColorAccent}" BorderThickness="1" CornerRadius="4" Padding="8,4" VerticalAlignment="Top">
-                    <TextBlock Text="${eTranVersion}" FontSize="10" Foreground="${eColorBadge}"/>
-                </Border>
+                <StackPanel Grid.Column="1" VerticalAlignment="Top" HorizontalAlignment="Right">
+                    <Border Background="${accentHover}" BorderBrush="${eColorAccent}" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,0,0,4">
+                        <TextBlock Text="${eTranVersion}" FontSize="10" Foreground="${eColorBadge}" HorizontalAlignment="Center"/>
+                    </Border>
+                    ${gamePlatform === 'steam' ? '<Border Background="#1A2B3C" BorderBrush="#2A475E" BorderThickness="1" CornerRadius="4" Padding="8,4"><TextBlock Text="STEAM" FontSize="9" FontWeight="Bold" Foreground="#66C0F4" HorizontalAlignment="Center"/></Border>' : ''}
+                    ${gamePlatform === 'xbox' ? '<Border Background="#107C10" BorderBrush="#0A5B0A" BorderThickness="1" CornerRadius="4" Padding="8,4"><TextBlock Text="PC GAME PASS" FontSize="9" FontWeight="Bold" Foreground="#FFFFFF" HorizontalAlignment="Center"/></Border>' : ''}
+                </StackPanel>
             </Grid>
             
             <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
@@ -928,7 +937,7 @@ try {
     $ThankYouSupportBtn = $Form.FindName("ThankYouSupportBtn")
     ` : ''}
 
-    ${steamAppId ? `
+    ${gamePlatform === 'steam' && steamAppId ? `
     # Auto-detect game path via Steam App ID
     $steamId = "${steamAppId.trim()}"
     if (-not [string]::IsNullOrWhiteSpace($steamId)) {
@@ -1007,6 +1016,63 @@ try {
         if (-not [string]::IsNullOrWhiteSpace($foundPath) -and (Test-Path $foundPath)) {
             $PathTextBox.Text = $foundPath
         }
+    }
+    ` : ''}
+
+    ${gamePlatform === 'xbox' ? `
+    # Auto-detect PC Game Pass / Xbox game path
+    $foundPath = ""
+    
+    # 1. Search across all drives (root and 1-level deep)
+    $drives = Get-PSDrive -PSProvider FileSystem | Select-Object -ExpandProperty Root
+    foreach ($drive in $drives) {
+        # Check direct path appended to drive (e.g., F:\Xgames\Grounded 2)
+        $directPath = Join-Path $drive "${psValidationPath}"
+        if (Test-Path $directPath) {
+            $foundPath = $directPath
+            break
+        }
+        
+        # Check common XboxGames folder (e.g., F:\XboxGames\Grounded 2)
+        $xboxPath = Join-Path $drive "XboxGames\\${psValidationPath}"
+        if (Test-Path $xboxPath) {
+            $foundPath = $xboxPath
+            break
+        }
+
+        # Check 1 directory deep (e.g., F:\Games\Grounded 2)
+        try {
+            $rootFolders = Get-ChildItem -Path $drive -Directory -ErrorAction SilentlyContinue
+            foreach ($folder in $rootFolders) {
+                $deepPath = Join-Path $folder.FullName "${psValidationPath}"
+                if (Test-Path $deepPath) {
+                    $foundPath = $deepPath
+                    break
+                }
+            }
+        } catch { }
+
+        if (-not [string]::IsNullOrWhiteSpace($foundPath)) { break }
+    }
+
+    # 2. Check Get-AppxPackage if not found
+    if ([string]::IsNullOrWhiteSpace($foundPath)) {
+        try {
+            $appxSearchTerm = Split-Path "${psValidationPath}" -Leaf
+            if ([string]::IsNullOrWhiteSpace($appxSearchTerm)) { $appxSearchTerm = "${psValidationPath}" }
+            
+            $packages = Get-AppxPackage -Name "*$appxSearchTerm*" -ErrorAction SilentlyContinue
+            foreach ($pkg in $packages) {
+                if (-not [string]::IsNullOrWhiteSpace($pkg.InstallLocation) -and (Test-Path $pkg.InstallLocation)) {
+                    $foundPath = $pkg.InstallLocation
+                    break
+                }
+            }
+        } catch { }
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($foundPath) -and (Test-Path $foundPath)) {
+        $PathTextBox.Text = $foundPath
     }
     ` : ''}
 
@@ -1173,7 +1239,7 @@ try {
     if ($ThankYouSupportBtn) { $ThankYouSupportBtn.Add_Click({ Show-Overlay $QrOverlay }) }
     ` : ''}
 
-    ${steamAppId ? `
+    ${gamePlatform !== 'none' ? `
     function Update-WindowIcon {
         param($gamePath)
         $AppExePath = Join-Path $gamePath '${psValidationPath}'
@@ -1206,7 +1272,7 @@ try {
 
         $selectedPath = $PathTextBox.Text
         if (-not [string]::IsNullOrWhiteSpace($selectedPath) -and (Test-Path $selectedPath)) {
-            ${steamAppId ? 'Update-WindowIcon -gamePath $selectedPath' : ''}
+            ${gamePlatform !== 'none' ? 'Update-WindowIcon -gamePath $selectedPath' : ''}
             $manifestPath = Join-Path $selectedPath "Aegis_Translation_Manifest.json"
             if (Test-Path $manifestPath) {
                 $InstallButton.Content = "${t.scriptUpdate}"
@@ -1623,6 +1689,7 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
       supportText,
       validationPath,
       steamAppId,
+      gamePlatform,
       installRelativePath,
       fullWindowBackground,
       textColorMain,
@@ -1790,6 +1857,7 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                         setSupportText(item.supportText || 'Investuj do slovenčiny v hrách');
                         setValidationPath(item.validationPath);
                         setSteamAppId(item.steamAppId || '');
+                        setGamePlatform(item.gamePlatform || 'none');
                         setInstallRelativePath(item.installRelativePath || '');
                         setFullWindowBackground(item.fullWindowBackground || false);
                         setTextColorMain(item.textColorMain || '#F5F7F2');
@@ -2228,15 +2296,41 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
               </div>
 
               <div className="space-y-1">
-                <label className="block text-[9px] uppercase text-[#919B82] ml-1" title={t.steamAppIdTooltip}>{t.steamAppIdInput}</label>
-                <input 
-                  type="text" 
-                  value={steamAppId}
-                  onChange={(e) => setSteamAppId(e.target.value)}
-                  placeholder="napr. 123450"
-                  className="w-full bg-[#131A11] border border-[#3E4B37] text-[#F5F7F2] rounded-[4px] px-2 py-1.5 text-xs focus:outline-none focus:border-[#919B82] transition-colors font-mono"
-                />
+                <label className="block text-[9px] uppercase text-[#919B82] ml-1">Platforma (Pre automatické vyhľadanie)</label>
+                <div className="flex bg-[#131A11] border border-[#3E4B37] rounded overflow-hidden text-xs text-[#F5F7F2]">
+                  <button 
+                    className={`flex-1 px-2 py-1.5 font-semibold transition-colors ${gamePlatform === 'none' ? 'bg-[#3E4B37] text-white' : 'hover:bg-[#3E4B37]/30'}`}
+                    onClick={() => setGamePlatform('none')}
+                  >
+                    Žiadna
+                  </button>
+                  <button 
+                    className={`flex-1 px-2 py-1.5 font-semibold transition-colors border-l border-[#3E4B37] ${gamePlatform === 'steam' ? 'bg-[#1A2B3C] text-[#66C0F4] border-l-[#2A475E]' : 'hover:bg-[#1A2B3C]/30'}`}
+                    onClick={() => setGamePlatform('steam')}
+                  >
+                    Steam
+                  </button>
+                  <button 
+                    className={`flex-1 px-2 py-1.5 font-semibold transition-colors border-l border-[#3E4B37] ${gamePlatform === 'xbox' ? 'bg-[#107C10] text-white border-l-[#107C10]' : 'hover:bg-[#107C10]/30'}`}
+                    onClick={() => setGamePlatform('xbox')}
+                  >
+                    PC Game Pass
+                  </button>
+                </div>
               </div>
+
+              {gamePlatform === 'steam' && (
+                <div className="space-y-1">
+                  <label className="block text-[9px] uppercase text-[#919B82] ml-1" title={t.steamAppIdTooltip}>{t.steamAppIdInput}</label>
+                  <input 
+                    type="text" 
+                    value={steamAppId}
+                    onChange={(e) => setSteamAppId(e.target.value)}
+                    placeholder="napr. 123450"
+                    className="w-full bg-[#131A11] border border-[#3E4B37] text-[#F5F7F2] rounded-[4px] px-2 py-1.5 text-xs focus:outline-none focus:border-[#919B82] transition-colors font-mono"
+                  />
+                </div>
+              )}
 
               <div className="space-y-1">
                 <label className="block text-[9px] uppercase text-[#919B82] ml-1" title={t.installRelativePathTooltip}>{t.installRelativePathInput}</label>
@@ -2598,8 +2692,14 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                     )}
                   </div>
                 </div>
-                <div className="text-right shrink-0">
+                <div className="text-right shrink-0 flex flex-col items-end gap-1.5">
                   <span className="text-[9px] lg:text-[10px] px-2 py-1 rounded border" style={{ color: colorTextBadge, backgroundColor: `${colorAccent}4C`, borderColor: colorAccent }}>{translationVersion || 'v1.0.0'}</span>
+                  {gamePlatform === 'steam' && (
+                    <span className="text-[8px] lg:text-[9px] px-2 py-1 rounded border font-bold bg-[#1A2B3C] text-[#66C0F4] border-[#2A475E]">STEAM</span>
+                  )}
+                  {gamePlatform === 'xbox' && (
+                    <span className="text-[8px] lg:text-[9px] px-2 py-1 rounded border font-bold bg-[#107C10] text-white border-[#0A5B0A]">PC GAME PASS</span>
+                  )}
                 </div>
               </div>
               
