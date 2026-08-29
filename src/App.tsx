@@ -100,7 +100,12 @@ export interface GameSettings {
   supportText?: string;
   validationPath: string;
   steamAppId?: string;
-  gamePlatform?: 'steam' | 'xbox' | 'none';
+  gamePlatform?: 'steam' | 'xbox' | 'epic' | 'gog' | 'ubisoft' | 'ea' | 'none';
+  useNoobTool?: boolean;
+  noobToolExecutable?: string;
+  useExtraFile?: boolean;
+  extraFileName?: string;
+  extraFileDest?: string;
   installRelativePath: string;
   fullWindowBackground: boolean;
   textColorMain?: string;
@@ -156,7 +161,12 @@ export default function App() {
   const [authorLink, setAuthorLink] = useState(() => getAutosaveValue('authorLink', 'https://komunitni-preklady.org/tym/flego'));
   const [validationPath, setValidationPath] = useState(() => getAutosaveValue('validationPath', 'GameName'));
   const [steamAppId, setSteamAppId] = useState(() => getAutosaveValue('steamAppId', ''));
-  const [gamePlatform, setGamePlatform] = useState<'steam' | 'xbox' | 'none'>(() => getAutosaveValue('gamePlatform', 'none'));
+  const [gamePlatform, setGamePlatform] = useState<'steam' | 'xbox' | 'epic' | 'gog' | 'ubisoft' | 'ea' | 'none'>(() => getAutosaveValue('gamePlatform', 'none'));
+  const [useNoobTool, setUseNoobTool] = useState<boolean>(() => getAutosaveValue('useNoobTool', false));
+  const [noobToolExecutable, setNoobToolExecutable] = useState(() => getAutosaveValue('noobToolExecutable', ''));
+  const [useExtraFile, setUseExtraFile] = useState<boolean>(() => getAutosaveValue('useExtraFile', false));
+  const [extraFileName, setExtraFileName] = useState(() => getAutosaveValue('extraFileName', 'StarfieldCustom.ini'));
+  const [extraFileDest, setExtraFileDest] = useState(() => getAutosaveValue('extraFileDest', '{DOCUMENTS}\\My Games\\Starfield'));
   const [installRelativePath, setInstallRelativePath] = useState(() => getAutosaveValue('installRelativePath', ''));
   const [translationVersion, setTranslationVersion] = useState(() => getAutosaveValue('translationVersion', 'v1.0.0'));
   const [changelog, setChangelog] = useState(() => getAutosaveValue('changelog', ''));
@@ -310,6 +320,11 @@ export default function App() {
     setValidationPath('GameName');
     setSteamAppId('');
     setGamePlatform('none');
+    setUseNoobTool(false);
+    setNoobToolExecutable('');
+    setUseExtraFile(false);
+    setExtraFileName('StarfieldCustom.ini');
+    setExtraFileDest('{DOCUMENTS}\\My Games\\Starfield');
     setInstallRelativePath('');
     setTranslationVersion('v1.0.0');
     setChangelog('');
@@ -356,6 +371,11 @@ export default function App() {
       validationPath,
       steamAppId,
       gamePlatform,
+      useNoobTool,
+      noobToolExecutable,
+      useExtraFile,
+      extraFileName,
+      extraFileDest,
       installRelativePath,
       translationVersion,
       changelog,
@@ -386,6 +406,11 @@ export default function App() {
     validationPath,
     steamAppId,
     gamePlatform,
+    useNoobTool,
+    noobToolExecutable,
+    useExtraFile,
+    extraFileName,
+    extraFileDest,
     installRelativePath,
     translationVersion,
     changelog,
@@ -683,6 +708,9 @@ export default function App() {
     const psAuthorLink = (authorLink || '').replace(/'/g, "''");
     const psValidationPath = validationPath.replace(/'/g, "''").replace(/^[\\\/]+/, '').trim();
     const psInstallRelativePath = installRelativePath.replace(/'/g, "''").replace(/^[\\\/]+/, '').trim();
+    const psUseExtraFile = useExtraFile ? '$true' : '$false';
+    const psExtraFileName = extraFileName.replace(/'/g, "''").trim();
+    const psExtraFileDest = extraFileDest.replace(/'/g, "''").trim();
 
     const scriptInstallerTitle = t.scriptInstallerTitle.replace('{name}', eName);
 
@@ -697,6 +725,9 @@ try {
     $bannerPath = Join-Path $PSScriptRoot "Assets\\banner.jpg"
     $ValidationPath = '${psValidationPath}'
     $InstallRelativePath = '${psInstallRelativePath}'
+    $UseExtraFile = ${psUseExtraFile}
+    $ExtraFileName = '${psExtraFileName}'
+    $ExtraFileDest = '${psExtraFileDest}'
     $AppTranslationLink = '${psLink}'
     $AppAuthorLink = '${psAuthorLink}'
 
@@ -785,6 +816,11 @@ try {
                     </Border>
                     ${gamePlatform === 'steam' ? '<Border Background="#1A2B3C" BorderBrush="#2A475E" BorderThickness="1" CornerRadius="4" Padding="8,4"><TextBlock Text="STEAM" FontSize="9" FontWeight="Bold" Foreground="#66C0F4" HorizontalAlignment="Center"/></Border>' : ''}
                     ${gamePlatform === 'xbox' ? '<Border Background="#107C10" BorderBrush="#0A5B0A" BorderThickness="1" CornerRadius="4" Padding="8,4"><TextBlock Text="PC GAME PASS" FontSize="9" FontWeight="Bold" Foreground="#FFFFFF" HorizontalAlignment="Center"/></Border>' : ''}
+                    ${gamePlatform === 'epic' ? '<Border Background="#2a2a2a" BorderBrush="#3f3f3f" BorderThickness="1" CornerRadius="4" Padding="8,4"><TextBlock Text="EPIC GAMES" FontSize="9" FontWeight="Bold" Foreground="#FFFFFF" HorizontalAlignment="Center"/></Border>' : ''}
+                    ${gamePlatform === 'gog' ? '<Border Background="#5c2f82" BorderBrush="#743b9c" BorderThickness="1" CornerRadius="4" Padding="8,4"><TextBlock Text="GOG.COM" FontSize="9" FontWeight="Bold" Foreground="#FFFFFF" HorizontalAlignment="Center"/></Border>' : ''}
+                    ${gamePlatform === 'ubisoft' ? '<Border Background="#0070ff" BorderBrush="#0080ff" BorderThickness="1" CornerRadius="4" Padding="8,4"><TextBlock Text="UBISOFT" FontSize="9" FontWeight="Bold" Foreground="#FFFFFF" HorizontalAlignment="Center"/></Border>' : ''}
+                    ${gamePlatform === 'ea' ? '<Border Background="#ff4747" BorderBrush="#ff6b6b" BorderThickness="1" CornerRadius="4" Padding="8,4"><TextBlock Text="EA APP" FontSize="9" FontWeight="Bold" Foreground="#FFFFFF" HorizontalAlignment="Center"/></Border>' : ''}
+                    ${gamePlatform !== 'none' && useNoobTool ? '<Border Background="#4A154B" BorderBrush="#8A258C" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,4,0,0"><TextBlock Text="N o o B Tool" FontSize="9" FontWeight="Bold" Foreground="#FFFFFF" HorizontalAlignment="Center"/></Border>' : ''}
                 </StackPanel>
             </Grid>
             
@@ -802,7 +838,10 @@ try {
             </Grid>
             
             <Grid Margin="0,20,0,5">
-                <TextBlock Name="StatusText" Text="${t.scriptReady}" Foreground="${eColorStatus}" FontSize="10" TextWrapping="NoWrap" HorizontalAlignment="Left"/>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                    <TextBlock Name="StatusText" Text="${t.scriptReady}" Foreground="${eColorStatus}" FontSize="10" TextWrapping="NoWrap"/>
+                    <TextBlock Name="VerifiedIcon" Text="✔ Verified" Foreground="#4ade80" FontSize="10" Margin="5,0,0,0" Visibility="Collapsed" FontWeight="Bold"/>
+                </StackPanel>
                 <TextBlock Name="ProgressPercent" Text="0%" Foreground="${eColorStatus}" FontSize="10" HorizontalAlignment="Right"/>
             </Grid>
             <ProgressBar Name="InstallProgress" Height="6" Minimum="0" Maximum="100" Background="${eColorSurface}" Foreground="${eColorAccent}" BorderThickness="0" Margin="0,0,0,20" IsIndeterminate="False"/>
@@ -1019,39 +1058,36 @@ try {
     }
     ` : ''}
 
-    ${gamePlatform === 'xbox' ? `
-    # Auto-detect PC Game Pass / Xbox game path
+    ${['xbox', 'epic', 'gog', 'ubisoft', 'ea'].includes(gamePlatform || '') ? `
+    # Auto-detect PC game path for other platforms (Xbox, Epic, GOG, Ubisoft, EA)
     $foundPath = ""
     
-    # 1. Search across all drives (root and 1-level deep)
+    # 1. Search across all drives in common game folders
     $drives = Get-PSDrive -PSProvider FileSystem | Select-Object -ExpandProperty Root
+    $commonGameDirs = @("", "XboxGames", "Games", "Hry", "Xgames", "Program Files", "Program Files (x86)", "Epic Games", "GOG Galaxy\\Games", "Ubisoft\\Ubisoft Game Launcher\\games", "EA Games")
+    
     foreach ($drive in $drives) {
-        # Check direct path appended to drive (e.g., F:\Xgames\Grounded 2)
-        $directPath = Join-Path $drive "${psValidationPath}"
-        if (Test-Path $directPath) {
-            $foundPath = $directPath
-            break
-        }
-        
-        # Check common XboxGames folder (e.g., F:\XboxGames\Grounded 2)
-        $xboxPath = Join-Path $drive "XboxGames\\${psValidationPath}"
-        if (Test-Path $xboxPath) {
-            $foundPath = $xboxPath
-            break
-        }
-
-        # Check 1 directory deep (e.g., F:\Games\Grounded 2)
-        try {
-            $rootFolders = Get-ChildItem -Path $drive -Directory -ErrorAction SilentlyContinue
-            foreach ($folder in $rootFolders) {
-                $deepPath = Join-Path $folder.FullName "${psValidationPath}"
-                if (Test-Path $deepPath) {
-                    $foundPath = $deepPath
+        foreach ($gameDir in $commonGameDirs) {
+            $testPath = $drive
+            if (-not [string]::IsNullOrWhiteSpace($gameDir)) {
+                $testPath = Join-Path $drive $gameDir
+            }
+            $testPath = Join-Path $testPath "${psValidationPath}"
+            
+            if (Test-Path $testPath) {
+                # Check if it contains an executable to confirm it's a valid game directory
+                $hasExe = $false
+                try {
+                    $exeFile = Get-ChildItem -Path $testPath -Filter "*.exe" -File -Recurse -Depth 3 -ErrorAction SilentlyContinue | Select-Object -First 1
+                    if ($null -ne $exeFile) { $hasExe = $true }
+                } catch { }
+                
+                if ($hasExe) {
+                    $foundPath = $testPath
                     break
                 }
             }
-        } catch { }
-
+        }
         if (-not [string]::IsNullOrWhiteSpace($foundPath)) { break }
     }
 
@@ -1269,6 +1305,9 @@ try {
         $UninstallButton.Opacity = 1.0
         $UninstallButton.IsHitTestVisible = $true
         $UninstallButton.Focusable = $true
+        
+        $VerifiedIcon = $Form.FindName("VerifiedIcon")
+        if ($VerifiedIcon) { $VerifiedIcon.Visibility = "Collapsed" }
 
         $selectedPath = $PathTextBox.Text
         if (-not [string]::IsNullOrWhiteSpace($selectedPath) -and (Test-Path $selectedPath)) {
@@ -1303,6 +1342,10 @@ try {
         $InstallButton.IsHitTestVisible = $false
         $InstallButton.Focusable = $false
         $BrowseButton.Visibility = "Collapsed"
+        
+        $VerifiedIcon = $Form.FindName("VerifiedIcon")
+        if ($VerifiedIcon) { $VerifiedIcon.Visibility = "Collapsed" }
+        
         $InstallProgress.IsIndeterminate = $true
         $StatusText.Text = "${t.scriptUninstalling}"
         if ($ProgressPercent) { $ProgressPercent.Text = "${t.scriptUninstalling}" }
@@ -1452,11 +1495,18 @@ try {
         $InstallButton.IsHitTestVisible = $false
         $InstallButton.Focusable = $false
         $BrowseButton.Visibility = "Collapsed"
+        
+        $VerifiedIcon = $Form.FindName("VerifiedIcon")
+        if ($VerifiedIcon) { $VerifiedIcon.Visibility = "Collapsed" }
+        
         $InstallProgress.IsIndeterminate = $true
         $StatusText.Text = "${t.scriptInstalling}"
         if ($ProgressPercent) { $ProgressPercent.Text = "${t.scriptInstalling}" }
         
         try {
+            $logPath = Join-Path $targetInstallPath "install.log"
+            "--- Inštalácia spustená $(Get-Date) ---" | Out-File -FilePath $logPath -Encoding UTF8 -Force
+
             $src = Join-Path $PSScriptRoot "Assets"
             if (Test-Path $src) {
                 # Get only files, exclude root banner and qrcode
@@ -1539,11 +1589,22 @@ try {
                             if ($needsBackup) {
                                 $backupFileDir = Split-Path $backupFilePath
                                 if (-not (Test-Path $backupFileDir)) { New-Item -ItemType Directory -Force -Path $backupFileDir | Out-Null }
-                                Copy-Item -Path $destPath -Destination $backupFilePath -Force
+                                try {
+                                    Copy-Item -Path $destPath -Destination $backupFilePath -Force -ErrorAction Stop
+                                    "Zálohovaný súbor: $manifestRelPath" | Out-File -FilePath $logPath -Encoding UTF8 -Append
+                                } catch {
+                                    "ERROR: Zálohovanie zlyhalo pre $manifestRelPath - $_" | Out-File -FilePath $logPath -Encoding UTF8 -Append
+                                }
                             }
                         }
                         
-                        Copy-Item -Path $item.FullName -Destination $destPath -Force
+                        try {
+                            Copy-Item -Path $item.FullName -Destination $destPath -Force -ErrorAction Stop
+                            "Skopírovaný súbor: $manifestRelPath" | Out-File -FilePath $logPath -Encoding UTF8 -Append
+                        } catch {
+                            "ERROR: Kopírovanie zlyhalo pre $manifestRelPath - $_" | Out-File -FilePath $logPath -Encoding UTF8 -Append
+                            throw $_
+                        }
                         
                         try { [System.Windows.Forms.Application]::DoEvents() } catch { }
 
@@ -1558,8 +1619,90 @@ try {
                     
                     $manifestJson = $manifestData | ConvertTo-Json -Depth 5 -Compress
                     Set-Content -Path $manifestPath -Value $manifestJson -Encoding UTF8 -Force
+                    
+                    if ($UseExtraFile -and -not [string]::IsNullOrWhiteSpace($ExtraFileName)) {
+                        $StatusText.Text = "Kopírujem extra súbory..."
+                        try { [System.Windows.Forms.Application]::DoEvents() } catch { }
+                        
+                        $rawDest = $ExtraFileDest -replace '\{USER_HOME\}', $env:USERPROFILE -replace '\{DOCUMENTS\}', [Environment]::GetFolderPath('MyDocuments')
+                        $sourceExtraFile = Join-Path $src $ExtraFileName
+                        
+                        if (Test-Path $sourceExtraFile) {
+                            if (-not (Test-Path $rawDest)) { New-Item -ItemType Directory -Force -Path $rawDest | Out-Null }
+                            $finalExtraDest = Join-Path $rawDest (Split-Path $ExtraFileName -Leaf)
+                            try {
+                                Copy-Item -Path $sourceExtraFile -Destination $finalExtraDest -Force -ErrorAction Stop
+                                "Skopírovaný extra súbor do: $finalExtraDest" | Out-File -FilePath $logPath -Encoding UTF8 -Append
+                            } catch {
+                                "ERROR: Zlyhalo kopírovanie extra súboru $ExtraFileName do $rawDest - $_" | Out-File -FilePath $logPath -Encoding UTF8 -Append
+                                [System.Windows.Forms.MessageBox]::Show("Chyba pri kopírovaní špeciálneho súboru ($ExtraFileName) do $rawDest.\`nDetail: $_", "Chyba kopírovania", 0, 16)
+                            }
+                        } else {
+                            "WARNING: Extra súbor $ExtraFileName nebol nájdený v inštalátore." | Out-File -FilePath $logPath -Encoding UTF8 -Append
+                        }
+                    }
+                    
+                    # Verification Phase
+                    $checksumsPath = Join-Path $src "checksums.json"
+                    if (Test-Path $checksumsPath) {
+                        $StatusText.Text = "Overujem súbory..."
+                        try { [System.Windows.Forms.Application]::DoEvents() } catch { }
+                        $verificationPassed = $true
+                        try {
+                            $checksumData = Get-Content -Path $checksumsPath -Raw -ErrorAction SilentlyContinue | ConvertFrom-Json
+                            foreach ($prop in $checksumData.psobject.properties) {
+                                $relPath = $prop.Name
+                                $expectedHash = $prop.Value
+                                $verifyPath = Join-Path $targetInstallPath $relPath
+                                if (Test-Path $verifyPath) {
+                                    $hash = (Get-FileHash -Path $verifyPath -Algorithm SHA256).Hash.ToLower()
+                                    if ($hash -ne $expectedHash.ToLower()) {
+                                        $verificationPassed = $false
+                                        "ERROR: Hash nesúhlasí pre $relPath. Očakávané $expectedHash, získané $hash" | Out-File -FilePath $logPath -Encoding UTF8 -Append
+                                    }
+                                } else {
+                                    $verificationPassed = $false
+                                    "ERROR: Súbor chýba pri overovaní: $relPath" | Out-File -FilePath $logPath -Encoding UTF8 -Append
+                                }
+                            }
+                        } catch {
+                            "ERROR: Overovanie zlyhalo - $_" | Out-File -FilePath $logPath -Encoding UTF8 -Append
+                            $verificationPassed = $false
+                        }
+                        
+                        if ($verificationPassed) {
+                            $VerifiedIcon = $Form.FindName("VerifiedIcon")
+                            if ($VerifiedIcon) { $VerifiedIcon.Visibility = "Visible" }
+                            "Všetky súbory boli úspešne overené." | Out-File -FilePath $logPath -Encoding UTF8 -Append
+                        } else {
+                            [System.Windows.Forms.MessageBox]::Show("Niektoré súbory sa nenakopírovali správne.\`nSkontrolujte súbor install.log v zložke hry pre detaily.", "Chyba overenia súborov", 0, 48)
+                        }
+                    }
                 }
             }
+            
+            ${useNoobTool && noobToolExecutable ? `
+            # NooB Tool Execution
+            $StatusText.Text = "Spúšťam N o o B Tool..."
+            if ($ProgressPercent) { $ProgressPercent.Text = "..." }
+            try { [System.Windows.Forms.Application]::DoEvents() } catch { }
+            
+            $noobToolPath = Join-Path $targetInstallPath "${noobToolExecutable.replace(/'/g, "''").trim()}"
+            if (Test-Path $noobToolPath) {
+                "Spúšťam NooB Tool: $noobToolPath" | Out-File -FilePath $logPath -Encoding UTF8 -Append
+                $processOptions = @{
+                    FilePath = $noobToolPath
+                    WorkingDirectory = $targetInstallPath
+                    Verb = "RunAs"
+                    Wait = $true
+                }
+                Start-Process @processOptions
+                "NooB Tool dokončil prácu." | Out-File -FilePath $logPath -Encoding UTF8 -Append
+            } else {
+                "ERROR: NooB Tool súbor sa nenašiel: $noobToolPath" | Out-File -FilePath $logPath -Encoding UTF8 -Append
+                [System.Windows.Forms.MessageBox]::Show("Nástroj ${noobToolExecutable} sa nenašiel v inštalačnej zložke. Preklad nemusí fungovať správne.", "Chyba N o o B Tool", 0, 16)
+            }
+            ` : ''}
             
             $InstallProgress.IsIndeterminate = $false
             $InstallProgress.Value = $InstallProgress.Maximum
@@ -1690,6 +1833,11 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
       validationPath,
       steamAppId,
       gamePlatform,
+      useNoobTool,
+      noobToolExecutable,
+      useExtraFile,
+      extraFileName,
+      extraFileDest,
       installRelativePath,
       fullWindowBackground,
       textColorMain,
@@ -1858,6 +2006,11 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                         setValidationPath(item.validationPath);
                         setSteamAppId(item.steamAppId || '');
                         setGamePlatform(item.gamePlatform || 'none');
+                        setUseNoobTool(item.useNoobTool || false);
+                        setNoobToolExecutable(item.noobToolExecutable || '');
+                        setUseExtraFile(item.useExtraFile || false);
+                        setExtraFileName(item.extraFileName || 'StarfieldCustom.ini');
+                        setExtraFileDest(item.extraFileDest || '{DOCUMENTS}\\My Games\\Starfield');
                         setInstallRelativePath(item.installRelativePath || '');
                         setFullWindowBackground(item.fullWindowBackground || false);
                         setTextColorMain(item.textColorMain || '#F5F7F2');
@@ -2297,24 +2450,48 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
 
               <div className="space-y-1">
                 <label className="block text-[9px] uppercase text-[#919B82] ml-1">Platforma (Pre automatické vyhľadanie)</label>
-                <div className="flex bg-[#131A11] border border-[#3E4B37] rounded overflow-hidden text-xs text-[#F5F7F2]">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-[1px] bg-[#3E4B37] border border-[#3E4B37] rounded overflow-hidden text-[10px] text-[#F5F7F2]">
                   <button 
-                    className={`flex-1 px-2 py-1.5 font-semibold transition-colors ${gamePlatform === 'none' ? 'bg-[#3E4B37] text-white' : 'hover:bg-[#3E4B37]/30'}`}
+                    className={`px-1 py-1.5 font-semibold transition-colors ${gamePlatform === 'none' ? 'bg-[#3E4B37] text-white' : 'bg-[#131A11] hover:bg-[#3E4B37]/30'}`}
                     onClick={() => setGamePlatform('none')}
                   >
                     Žiadna
                   </button>
                   <button 
-                    className={`flex-1 px-2 py-1.5 font-semibold transition-colors border-l border-[#3E4B37] ${gamePlatform === 'steam' ? 'bg-[#1A2B3C] text-[#66C0F4] border-l-[#2A475E]' : 'hover:bg-[#1A2B3C]/30'}`}
+                    className={`px-1 py-1.5 font-semibold transition-colors ${gamePlatform === 'steam' ? 'bg-[#1A2B3C] text-[#66C0F4]' : 'bg-[#131A11] hover:bg-[#1A2B3C]/30'}`}
                     onClick={() => setGamePlatform('steam')}
                   >
                     Steam
                   </button>
                   <button 
-                    className={`flex-1 px-2 py-1.5 font-semibold transition-colors border-l border-[#3E4B37] ${gamePlatform === 'xbox' ? 'bg-[#107C10] text-white border-l-[#107C10]' : 'hover:bg-[#107C10]/30'}`}
+                    className={`px-1 py-1.5 font-semibold transition-colors ${gamePlatform === 'xbox' ? 'bg-[#107C10] text-white' : 'bg-[#131A11] hover:bg-[#107C10]/30'}`}
                     onClick={() => setGamePlatform('xbox')}
                   >
-                    PC Game Pass
+                    Xbox
+                  </button>
+                  <button 
+                    className={`px-1 py-1.5 font-semibold transition-colors ${gamePlatform === 'epic' ? 'bg-[#2a2a2a] text-white' : 'bg-[#131A11] hover:bg-[#2a2a2a]/30'}`}
+                    onClick={() => setGamePlatform('epic')}
+                  >
+                    Epic
+                  </button>
+                  <button 
+                    className={`px-1 py-1.5 font-semibold transition-colors ${gamePlatform === 'gog' ? 'bg-[#5c2f82] text-white' : 'bg-[#131A11] hover:bg-[#5c2f82]/30'}`}
+                    onClick={() => setGamePlatform('gog')}
+                  >
+                    GOG
+                  </button>
+                  <button 
+                    className={`px-1 py-1.5 font-semibold transition-colors ${gamePlatform === 'ubisoft' ? 'bg-[#0070ff] text-white' : 'bg-[#131A11] hover:bg-[#0070ff]/30'}`}
+                    onClick={() => setGamePlatform('ubisoft')}
+                  >
+                    Ubisoft
+                  </button>
+                  <button 
+                    className={`px-1 py-1.5 font-semibold transition-colors ${gamePlatform === 'ea' ? 'bg-[#ff4747] text-white' : 'bg-[#131A11] hover:bg-[#ff4747]/30'}`}
+                    onClick={() => setGamePlatform('ea')}
+                  >
+                    EA
                   </button>
                 </div>
               </div>
@@ -2332,6 +2509,33 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                 </div>
               )}
 
+              {gamePlatform !== 'none' && (
+                <div className="mt-2 p-2 border border-[#3E4B37] rounded bg-[#1A2318]">
+                  <div className="flex items-center gap-2">
+                    <input 
+                      type="checkbox" 
+                      id="noobToolCheck"
+                      checked={useNoobTool} 
+                      onChange={(e) => setUseNoobTool(e.target.checked)} 
+                      className="accent-[#919B82] cursor-pointer"
+                    />
+                    <label htmlFor="noobToolCheck" className="text-[10px] uppercase text-[#919B82] font-semibold cursor-pointer">N o o B Tool (Spustiť skript po inštalácii)</label>
+                  </div>
+                  {useNoobTool && (
+                    <div className="mt-2 space-y-1">
+                      <label className="block text-[9px] uppercase text-[#919B82] ml-1">Spustiteľný súbor nástroja</label>
+                      <input 
+                        type="text" 
+                        value={noobToolExecutable}
+                        onChange={(e) => setNoobToolExecutable(e.target.value)}
+                        placeholder="napr. AC_BF_Resynced_Text_Tool_NooB.exe"
+                        className="w-full bg-[#131A11] border border-[#3E4B37] text-[#F5F7F2] rounded-[4px] px-2 py-1.5 text-xs focus:outline-none focus:border-[#919B82] transition-colors font-mono"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="space-y-1">
                 <label className="block text-[9px] uppercase text-[#919B82] ml-1" title={t.installRelativePathTooltip}>{t.installRelativePathInput}</label>
                 <input 
@@ -2341,6 +2545,43 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                   placeholder="napr. Game\Content\Paks (nechajte prázdne pre koreň hry)"
                   className="w-full bg-[#131A11] border border-[#3E4B37] text-[#F5F7F2] rounded-[4px] px-2 py-1.5 text-xs focus:outline-none focus:border-[#919B82] transition-colors font-mono"
                 />
+              </div>
+
+              <div className="mt-2 p-2 border border-[#3E4B37] rounded bg-[#1A2318]">
+                <div className="flex items-center gap-2">
+                  <input 
+                    type="checkbox" 
+                    id="extraFileCheck"
+                    checked={useExtraFile} 
+                    onChange={(e) => setUseExtraFile(e.target.checked)} 
+                    className="accent-[#919B82] cursor-pointer"
+                  />
+                  <label htmlFor="extraFileCheck" className="text-[10px] uppercase text-[#919B82] font-semibold cursor-pointer">Kopírovať ďalší súbor inam (Napr. .ini do Dokumentov)</label>
+                </div>
+                {useExtraFile && (
+                  <div className="mt-2 space-y-2">
+                    <div>
+                      <label className="block text-[9px] uppercase text-[#919B82] ml-1">Názov súboru z prekladu</label>
+                      <input 
+                        type="text" 
+                        value={extraFileName}
+                        onChange={(e) => setExtraFileName(e.target.value)}
+                        placeholder="napr. StarfieldCustom.ini"
+                        className="w-full bg-[#131A11] border border-[#3E4B37] text-[#F5F7F2] rounded-[4px] px-2 py-1.5 text-xs focus:outline-none focus:border-[#919B82] transition-colors font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[9px] uppercase text-[#919B82] ml-1">Cieľová zložka pre súbor (použite {'{DOCUMENTS}'} alebo {'{USER_HOME}'})</label>
+                      <input 
+                        type="text" 
+                        value={extraFileDest}
+                        onChange={(e) => setExtraFileDest(e.target.value)}
+                        placeholder="napr. {DOCUMENTS}\My Games\Starfield"
+                        className="w-full bg-[#131A11] border border-[#3E4B37] text-[#F5F7F2] rounded-[4px] px-2 py-1.5 text-xs focus:outline-none focus:border-[#919B82] transition-colors font-mono"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
                   </motion.div>
@@ -2699,6 +2940,21 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                   )}
                   {gamePlatform === 'xbox' && (
                     <span className="text-[8px] lg:text-[9px] px-2 py-1 rounded border font-bold bg-[#107C10] text-white border-[#0A5B0A]">PC GAME PASS</span>
+                  )}
+                  {gamePlatform === 'epic' && (
+                    <span className="text-[8px] lg:text-[9px] px-2 py-1 rounded border font-bold bg-[#2a2a2a] text-white border-[#3f3f3f]">EPIC GAMES</span>
+                  )}
+                  {gamePlatform === 'gog' && (
+                    <span className="text-[8px] lg:text-[9px] px-2 py-1 rounded border font-bold bg-[#5c2f82] text-white border-[#743b9c]">GOG.COM</span>
+                  )}
+                  {gamePlatform === 'ubisoft' && (
+                    <span className="text-[8px] lg:text-[9px] px-2 py-1 rounded border font-bold bg-[#0070ff] text-white border-[#0080ff]">UBISOFT</span>
+                  )}
+                  {gamePlatform === 'ea' && (
+                    <span className="text-[8px] lg:text-[9px] px-2 py-1 rounded border font-bold bg-[#ff4747] text-white border-[#ff6b6b]">EA APP</span>
+                  )}
+                  {gamePlatform !== 'none' && useNoobTool && (
+                    <span className="text-[8px] lg:text-[9px] px-2 py-1 rounded border font-bold bg-[#4A154B] text-white border-[#8A258C]">N o o B Tool</span>
                   )}
                 </div>
               </div>
