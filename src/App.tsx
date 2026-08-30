@@ -1385,11 +1385,28 @@ try {
                     try { [System.Windows.Forms.Application]::DoEvents() } catch { }
                 }
             }
+            
+            # Extra file uninstall and restore
+            if ($null -ne $manifest.extraFile) {
+                if (Test-Path $manifest.extraFile.dest) {
+                    $StatusText.Text = "${t.scriptUninstalling} " + $manifest.extraFile.name
+                    Remove-Item -Path $manifest.extraFile.dest -Force -ErrorAction SilentlyContinue
+                }
+                if ($manifest.extraFile.backedUp -eq $true) {
+                    $extraBackupDir = Join-Path $backupDir "__Extra__"
+                    $extraBackupPath = Join-Path $extraBackupDir $manifest.extraFile.name
+                    if (Test-Path $extraBackupPath) {
+                        $StatusText.Text = "${t.scriptRestoring} " + $manifest.extraFile.name
+                        Copy-Item -Path $extraBackupPath -Destination $manifest.extraFile.dest -Force -ErrorAction SilentlyContinue
+                    }
+                }
+            }
 
             # Restore backups
             if ($backupExists -and $backupCount -gt 0) {
                 foreach ($item in $backupFiles) {
                     $relativePath = $item.FullName.Substring($backupDir.Length + 1)
+                    if ($relativePath.StartsWith("__Extra__")) { continue }
                     $destPath = Join-Path $selectedPath $relativePath
                     $destDir = Split-Path $destPath
                     if (-not (Test-Path $destDir)) { New-Item -ItemType Directory -Force -Path $destDir | Out-Null }
@@ -1630,12 +1647,48 @@ try {
                         if (Test-Path $sourceExtraFile) {
                             if (-not (Test-Path $rawDest)) { New-Item -ItemType Directory -Force -Path $rawDest | Out-Null }
                             $finalExtraDest = Join-Path $rawDest (Split-Path $ExtraFileName -Leaf)
-                            try {
-                                Copy-Item -Path $sourceExtraFile -Destination $finalExtraDest -Force -ErrorAction Stop
-                                "Skopírovaný extra súbor do: $finalExtraDest" | Out-File -FilePath $logPath -Encoding UTF8 -Append
-                            } catch {
-                                "ERROR: Zlyhalo kopírovanie extra súboru $ExtraFileName do $rawDest - $_" | Out-File -FilePath $logPath -Encoding UTF8 -Append
-                                [System.Windows.Forms.MessageBox]::Show("Chyba pri kopírovaní špeciálneho súboru ($ExtraFileName) do $rawDest.\`nDetail: $_", "Chyba kopírovania", 0, 16)
+                            
+                            $extraFileBackedUp = $false
+                            $extraFileBackupPath = Join-Path $backupDir "__Extra__"
+                            if (-not (Test-Path $extraFileBackupPath)) { New-Item -ItemType Directory -Force -Path $extraFileBackupPath | Out-Null }
+                            $extraFileBackupFile = Join-Path $extraFileBackupPath (Split-Path $ExtraFileName -Leaf)
+                            
+                            $overwriteExtra = $true
+                            if (Test-Path $finalExtraDest) {
+                                $msgResult = [System.Windows.Forms.MessageBox]::Show("Súbor $(Split-Path $ExtraFileName -Leaf) už v cieľovej zložke existuje.\`nChcete ho prepísať novou verziou z prekladu?\`n\`n(Ak zvolíte Áno, pôvodný súbor bude bezpečne archivovaný)", "Prepísať existujúci súbor?", 4, 32)
+                                if ($msgResult -ne 6) {
+                                    $overwriteExtra = $false
+                                    "Používateľ zrušil prepísanie extra súboru: $finalExtraDest" | Out-File -FilePath $logPath -Encoding UTF8 -Append
+                                } else {
+                                    if (-not (Test-Path $extraFileBackupFile)) {
+                                        try {
+                                            Copy-Item -Path $finalExtraDest -Destination $extraFileBackupFile -Force
+                                            $extraFileBackedUp = $true
+                                            "Zálohovaný extra súbor: $finalExtraDest" | Out-File -FilePath $logPath -Encoding UTF8 -Append
+                                            [System.Windows.Forms.MessageBox]::Show("Pôvodný súbor bol úspešne archivovaný.\`nPo odinštalovaní prekladu sa automaticky obnoví.", "Archivácia úspešná", 0, 64)
+                                        } catch { }
+                                    } else {
+                                        $extraFileBackedUp = $true
+                                    }
+                                }
+                            }
+
+                            if ($overwriteExtra) {
+                                try {
+                                    Copy-Item -Path $sourceExtraFile -Destination $finalExtraDest -Force -ErrorAction Stop
+                                    "Skopírovaný extra súbor do: $finalExtraDest" | Out-File -FilePath $logPath -Encoding UTF8 -Append
+                                    
+                                    $manifestData.extraFile = @{
+                                        name = (Split-Path $ExtraFileName -Leaf);
+                                        dest = $finalExtraDest;
+                                        backedUp = $extraFileBackedUp
+                                    }
+                                    $manifestJson = $manifestData | ConvertTo-Json -Depth 5 -Compress
+                                    Set-Content -Path $manifestPath -Value $manifestJson -Encoding UTF8 -Force
+                                } catch {
+                                    "ERROR: Zlyhalo kopírovanie extra súboru $ExtraFileName do $rawDest - $_" | Out-File -FilePath $logPath -Encoding UTF8 -Append
+                                    [System.Windows.Forms.MessageBox]::Show("Chyba pri kopírovaní špeciálneho súboru ($ExtraFileName) do $rawDest.\`nDetail: $_", "Chyba kopírovania", 0, 16)
+                                }
                             }
                         } else {
                             "WARNING: Extra súbor $ExtraFileName nebol nájdený v inštalátore." | Out-File -FilePath $logPath -Encoding UTF8 -Append
