@@ -103,6 +103,9 @@ export interface GameSettings {
   gamePlatform?: 'steam' | 'xbox' | 'epic' | 'gog' | 'ubisoft' | 'ea' | 'none';
   useNoobTool?: boolean;
   noobToolExecutable?: string;
+  usePostTool?: boolean;
+  postToolFolder?: string;
+  promptPostTool?: boolean;
   useExtraFile?: boolean;
   extraFileName?: string;
   extraFileDest?: string;
@@ -164,6 +167,9 @@ export default function App() {
   const [gamePlatform, setGamePlatform] = useState<'steam' | 'xbox' | 'epic' | 'gog' | 'ubisoft' | 'ea' | 'none'>(() => getAutosaveValue('gamePlatform', 'none'));
   const [useNoobTool, setUseNoobTool] = useState<boolean>(() => getAutosaveValue('useNoobTool', false));
   const [noobToolExecutable, setNoobToolExecutable] = useState(() => getAutosaveValue('noobToolExecutable', ''));
+  const [usePostTool, setUsePostTool] = useState<boolean>(() => getAutosaveValue('usePostTool', false));
+  const [postToolFolder, setPostToolFolder] = useState(() => getAutosaveValue('postToolFolder', 'PostToolFiles'));
+  const [promptPostTool, setPromptPostTool] = useState<boolean>(() => getAutosaveValue('promptPostTool', true));
   const [useExtraFile, setUseExtraFile] = useState<boolean>(() => getAutosaveValue('useExtraFile', false));
   const [extraFileName, setExtraFileName] = useState(() => getAutosaveValue('extraFileName', 'StarfieldCustom.ini'));
   const [extraFileDest, setExtraFileDest] = useState(() => getAutosaveValue('extraFileDest', '{DOCUMENTS}\\My Games\\Starfield'));
@@ -322,6 +328,9 @@ export default function App() {
     setGamePlatform('none');
     setUseNoobTool(false);
     setNoobToolExecutable('');
+    setUsePostTool(false);
+    setPostToolFolder('PostToolFiles');
+    setPromptPostTool(true);
     setUseExtraFile(false);
     setExtraFileName('StarfieldCustom.ini');
     setExtraFileDest('{DOCUMENTS}\\My Games\\Starfield');
@@ -373,6 +382,9 @@ export default function App() {
       gamePlatform,
       useNoobTool,
       noobToolExecutable,
+      usePostTool,
+      postToolFolder,
+      promptPostTool,
       useExtraFile,
       extraFileName,
       extraFileDest,
@@ -408,6 +420,9 @@ export default function App() {
     gamePlatform,
     useNoobTool,
     noobToolExecutable,
+    usePostTool,
+    postToolFolder,
+    promptPostTool,
     useExtraFile,
     extraFileName,
     extraFileDest,
@@ -708,6 +723,9 @@ export default function App() {
     const psAuthorLink = (authorLink || '').replace(/'/g, "''");
     const psValidationPath = validationPath.replace(/'/g, "''").replace(/^[\\\/]+/, '').trim();
     const psInstallRelativePath = installRelativePath.replace(/'/g, "''").replace(/^[\\\/]+/, '').trim();
+    const psPostToolFolder = (postToolFolder || '').replace(/'/g, "''").trim();
+    const psUsePostTool = usePostTool ? '$true' : '$false';
+    const psPromptPostTool = promptPostTool ? '$true' : '$false';
     const psUseExtraFile = useExtraFile ? '$true' : '$false';
     const psExtraFileName = extraFileName.replace(/'/g, "''").trim();
     const psExtraFileDest = extraFileDest.replace(/'/g, "''").trim();
@@ -1526,9 +1544,19 @@ try {
 
             $src = Join-Path $PSScriptRoot "Assets"
             if (Test-Path $src) {
+                $postToolSrc = ""
+                if (${psUsePostTool} -eq $true -and -not [string]::IsNullOrWhiteSpace('${psPostToolFolder}')) {
+                    $postToolSrc = Join-Path $src '${psPostToolFolder}'
+                }
+
                 # Get only files, exclude root banner and qrcode
                 $assets = @(Get-ChildItem -Path $src -Recurse -File | Where-Object { 
-                    -not ($_.DirectoryName -eq $src -and ($_.Name -eq 'banner.jpg' -or $_.Name -eq 'qrcode.jpg'))
+                    $isRootEx = ($_.DirectoryName -eq $src -and ($_.Name -eq 'banner.jpg' -or $_.Name -eq 'qrcode.jpg'))
+                    $isPost = $false
+                    if (-not [string]::IsNullOrWhiteSpace($postToolSrc) -and $_.FullName.StartsWith($postToolSrc)) {
+                        $isPost = $true
+                    }
+                    -not $isRootEx -and -not $isPost
                 })
                 $totalFiles = $assets.Count
                 if ($totalFiles -gt 0) {
@@ -1743,9 +1771,10 @@ try {
             $noobToolPath = Join-Path $targetInstallPath "${noobToolExecutable.replace(/'/g, "''").trim()}"
             if (Test-Path $noobToolPath) {
                 "Spúšťam Text Tool: $noobToolPath" | Out-File -FilePath $logPath -Encoding UTF8 -Append
+                $noobToolDir = Split-Path $noobToolPath
                 $processOptions = @{
                     FilePath = $noobToolPath
-                    WorkingDirectory = $targetInstallPath
+                    WorkingDirectory = $noobToolDir
                     Verb = "RunAs"
                     Wait = $true
                 }
@@ -1754,6 +1783,87 @@ try {
             } else {
                 "ERROR: Text Tool súbor sa nenašiel: $noobToolPath" | Out-File -FilePath $logPath -Encoding UTF8 -Append
                 [System.Windows.Forms.MessageBox]::Show("Nástroj ${noobToolExecutable} sa nenašiel v inštalačnej zložke. Preklad nemusí fungovať správne.", "Chyba Text Tool", 0, 16)
+            }
+            ` : ''}
+            
+            ${usePostTool ? `
+            # Post-Tool File Copy
+            if (-not [string]::IsNullOrWhiteSpace($postToolSrc) -and (Test-Path $postToolSrc)) {
+                ${promptPostTool ? `
+                [System.Windows.Forms.MessageBox]::Show("Text Tool dokončil svoju prácu.\`n\`nKliknite na OK pre nakopírovanie dodatočných súborov (napr. upravené fonty).", "Pokračovanie inštalácie", 0, 64) | Out-Null
+                ` : ''}
+                
+                $StatusText.Text = "Kopírujem dodatočné súbory..."
+                if ($ProgressPercent) { $ProgressPercent.Text = "..." }
+                try { [System.Windows.Forms.Application]::DoEvents() } catch { }
+                
+                $postAssets = @(Get-ChildItem -Path $postToolSrc -Recurse -File)
+                foreach ($item in $postAssets) {
+                    $postRelPath = $item.FullName.Substring($postToolSrc.Length + 1)
+                    $destPath = Join-Path $targetInstallPath $postRelPath
+                    $destDir = Split-Path $destPath
+                    if (-not (Test-Path $destDir)) { New-Item -ItemType Directory -Force -Path $destDir | Out-Null }
+                    
+                    # Backup logic for Post-Tool files
+                    $needsBackup = $false
+                    $backupFilePath = Join-Path $backupDir $postRelPath
+                    if (Test-Path $destPath) {
+                        if (-not $isUpdate) {
+                            $needsBackup = $true
+                        } else {
+                            $targetInfo = Get-Item -Path $destPath
+                            $oldFileEntry = $null
+                            if ($oldManifest -and $oldManifest.files) {
+                                $oldFileEntry = $oldManifest.files | Where-Object { $_.path -eq $postRelPath } | Select-Object -First 1
+                            }
+                            if ($oldFileEntry) {
+                                if (($targetInfo.Length -ne $oldFileEntry.size) -or ($targetInfo.LastWriteTimeUtc.Ticks.ToString() -ne $oldFileEntry.ticks.ToString())) {
+                                    $needsBackup = $true
+                                }
+                            } else {
+                                if (-not (Test-Path $backupFilePath)) { $needsBackup = $true }
+                            }
+                        }
+                    } else {
+                        $needsBackup = $true
+                    }
+
+                    if ($needsBackup -and (Test-Path $destPath)) {
+                        $backupFileDir = Split-Path $backupFilePath
+                        if (-not (Test-Path $backupFileDir)) { New-Item -ItemType Directory -Force -Path $backupFileDir | Out-Null }
+                        try {
+                            Copy-Item -Path $destPath -Destination $backupFilePath -Force -ErrorAction Stop
+                            "Zálohovaný dodatočný súbor: $postRelPath" | Out-File -FilePath $logPath -Encoding UTF8 -Append
+                        } catch { }
+                    }
+
+                    # Copy post-tool file
+                    try {
+                        Copy-Item -Path $item.FullName -Destination $destPath -Force -ErrorAction Stop
+                        "Skopírovaný dodatočný súbor: $postRelPath" | Out-File -FilePath $logPath -Encoding UTF8 -Append
+
+                        # Update manifest
+                        $newTargetInfo = Get-Item -Path $destPath
+                        $existingEntry = $manifestData.files | Where-Object { $_.path -eq $postRelPath } | Select-Object -First 1
+                        if ($existingEntry) {
+                            $existingEntry.size = $newTargetInfo.Length
+                            $existingEntry.ticks = $newTargetInfo.LastWriteTimeUtc.Ticks.ToString()
+                        } else {
+                            $manifestData.files += @{ 
+                                name = $item.Name; 
+                                path = $postRelPath; 
+                                size = $newTargetInfo.Length; 
+                                ticks = $newTargetInfo.LastWriteTimeUtc.Ticks.ToString() 
+                            }
+                        }
+                    } catch {
+                        "ERROR: Zlyhalo kopírovanie dodatočného súboru $postRelPath - $_" | Out-File -FilePath $logPath -Encoding UTF8 -Append
+                    }
+                }
+                
+                # Save manifest again
+                $manifestJson = $manifestData | ConvertTo-Json -Depth 5 -Compress
+                Set-Content -Path $manifestPath -Value $manifestJson -Encoding UTF8 -Force
             }
             ` : ''}
             
@@ -1888,6 +1998,9 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
       gamePlatform,
       useNoobTool,
       noobToolExecutable,
+      usePostTool,
+      postToolFolder,
+      promptPostTool,
       useExtraFile,
       extraFileName,
       extraFileDest,
@@ -2061,6 +2174,9 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                         setGamePlatform(item.gamePlatform || 'none');
                         setUseNoobTool(item.useNoobTool || false);
                         setNoobToolExecutable(item.noobToolExecutable || '');
+                        setUsePostTool(item.usePostTool || false);
+                        setPostToolFolder(item.postToolFolder || 'PostToolFiles');
+                        setPromptPostTool(item.promptPostTool ?? true);
                         setUseExtraFile(item.useExtraFile || false);
                         setExtraFileName(item.extraFileName || 'StarfieldCustom.ini');
                         setExtraFileDest(item.extraFileDest || '{DOCUMENTS}\\My Games\\Starfield');
@@ -2576,14 +2692,59 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                   </div>
                   {useNoobTool && (
                     <div className="mt-2 space-y-1">
-                      <label className="block text-[9px] uppercase text-[#919B82] ml-1">Spustiteľný súbor nástroja</label>
+                      <label className="block text-[9px] uppercase text-[#919B82] ml-1">Spustiteľný súbor nástroja (aj s cestou)</label>
                       <input 
                         type="text" 
                         value={noobToolExecutable}
                         onChange={(e) => setNoobToolExecutable(e.target.value)}
-                        placeholder="napr. AC_BF_Resynced_Text_Tool_NooB.exe"
+                        placeholder="napr. Slovak\Once_Human_Slovak.exe"
                         className="w-full bg-[#131A11] border border-[#3E4B37] text-[#F5F7F2] rounded-[4px] px-2 py-1.5 text-xs focus:outline-none focus:border-[#919B82] transition-colors font-mono"
                       />
+                      
+                      <div className="mt-4 pt-3 border-t border-[#3E4B37]/50 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <input 
+                            type="checkbox" 
+                            id="postToolCheck"
+                            checked={usePostTool} 
+                            onChange={(e) => setUsePostTool(e.target.checked)} 
+                            className="accent-[#919B82] cursor-pointer"
+                          />
+                          <label htmlFor="postToolCheck" className="text-[10px] text-[#919B82] font-semibold cursor-pointer leading-tight">
+                            Po dokončení nástroja nakopírovať ďalšie súbory<br/>(napr. upravené fonty)
+                          </label>
+                        </div>
+                        
+                        {usePostTool && (
+                          <div className="pl-5 space-y-3 mt-2">
+                            <div className="space-y-1">
+                              <label className="block text-[9px] uppercase text-[#919B82]" title="Zložka v Assets, ktorá obsahuje súbory na nakopírovanie po Text Tool. Tieto súbory sa nenakopírujú na začiatku, ale až na konci.">
+                                Názov zložky v Assets
+                              </label>
+                              <input 
+                                type="text" 
+                                value={postToolFolder}
+                                onChange={(e) => setPostToolFolder(e.target.value)}
+                                placeholder="napr. PostToolFiles"
+                                className="w-full bg-[#131A11] border border-[#3E4B37] text-[#F5F7F2] rounded-[4px] px-2 py-1.5 text-xs focus:outline-none focus:border-[#919B82] transition-colors font-mono"
+                              />
+                              <p className="text-[9px] text-[#919B82] mt-1 leading-tight">Všetok obsah tejto zložky sa nakopíruje priamo do zložky s hrou.</p>
+                            </div>
+                            <div className="flex items-center gap-2 mt-2">
+                              <input 
+                                type="checkbox" 
+                                id="promptPostToolCheck"
+                                checked={promptPostTool} 
+                                onChange={(e) => setPromptPostTool(e.target.checked)} 
+                                className="accent-[#919B82] cursor-pointer"
+                              />
+                              <label htmlFor="promptPostToolCheck" className="text-[9px] text-[#919B82] cursor-pointer leading-tight">
+                                Zobraziť výzvu a čakať na potvrdenie od užívateľa pred kopírovaním
+                              </label>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
