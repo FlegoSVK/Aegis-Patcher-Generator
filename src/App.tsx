@@ -208,7 +208,9 @@ export default function App() {
   const [iban, setIban] = useState(() => getAutosaveValue('iban', ''));
   
   const [translationFiles, setTranslationFiles] = useState<{file: File, path: string}[]>([]);
+  const [postToolFiles, setPostToolFiles] = useState<{file: File, path: string}[]>([]);
   const [isDragActive, setIsDragActive] = useState(false);
+  const [isPostToolDragActive, setIsPostToolDragActive] = useState(false);
   const [previewStep, setPreviewStep] = useState<1|2|3|4>(1);
 
   const traverseFileTree = (entry: any, path: string = ""): Promise<{file: File, path: string}[]> => {
@@ -258,6 +260,16 @@ export default function App() {
     }
   };
 
+  const handlePostToolDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setIsPostToolDragActive(true);
+    } else if (e.type === "dragleave") {
+      setIsPostToolDragActive(false);
+    }
+  };
+
   const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -294,11 +306,52 @@ export default function App() {
       setTranslationFiles(prev => [...prev, ...newFiles]);
     }
   };
+
+  const handlePostToolDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsPostToolDragActive(false);
+
+    if (e.dataTransfer.items) {
+      const promises: Promise<{file: File, path: string}[]>[] = [];
+      for (let i = 0; i < e.dataTransfer.items.length; i++) {
+        const item = e.dataTransfer.items[i];
+        if (item.kind === 'file') {
+          if (typeof item.webkitGetAsEntry === 'function') {
+            const entry = item.webkitGetAsEntry();
+            if (entry) {
+              promises.push(traverseFileTree(entry));
+            }
+          } else {
+            const file = item.getAsFile();
+            if (file) {
+              promises.push(Promise.resolve([{ file, path: file.name }]));
+            }
+          }
+        }
+      }
+      const results = await Promise.all(promises);
+      const droppedFiles = results.flat();
+      if (droppedFiles.length > 0) {
+        setPostToolFiles(prev => [...prev, ...droppedFiles]);
+      }
+    } else if (e.dataTransfer.files) {
+      const newFiles = Array.from(e.dataTransfer.files).map((f: File) => ({
+        file: f,
+        path: f.name
+      }));
+      setPostToolFiles(prev => [...prev, ...newFiles]);
+    }
+  };
   const [isGenerating, setIsGenerating] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
 
   const handleRemoveFile = (index: number) => {
     setTranslationFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleRemovePostToolFile = (index: number) => {
+    setPostToolFiles(prev => prev.filter((_, i) => i !== index));
   };
   
   const [qrCodeFile, setQrCodeFile] = useState<File | null>(null);
@@ -356,6 +409,7 @@ export default function App() {
     setQrCodePreview(null);
     setQrCodeFile(null);
     setTranslationFiles([]);
+    setPostToolFiles([]);
     setFullWindowBackground(true);
     // Zachovanie globálnych nastavení pre modul poďakovania
     // setEnableThankYouModule(false); 
@@ -459,6 +513,8 @@ export default function App() {
   const qrInputRef = useRef<HTMLInputElement>(null);
   const filesInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
+  const postToolFilesInputRef = useRef<HTMLInputElement>(null);
+  const postToolFolderInputRef = useRef<HTMLInputElement>(null);
 
   const handleQrChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -567,6 +623,28 @@ export default function App() {
         path: f.webkitRelativePath || f.name
       }));
       setTranslationFiles(prev => [...prev, ...newFiles]);
+    }
+  };
+
+  const handlePostToolFilesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      if(showValidationErrors) setShowValidationErrors(false);
+      const newFiles = Array.from(e.target.files).map((f: File) => ({
+        file: f,
+        path: f.name
+      }));
+      setPostToolFiles(prev => [...prev, ...newFiles]);
+    }
+  };
+
+  const handlePostToolFolderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      if(showValidationErrors) setShowValidationErrors(false);
+      const newFiles = Array.from(e.target.files).map((f: File) => ({
+        file: f,
+        path: f.webkitRelativePath || f.name
+      }));
+      setPostToolFiles(prev => [...prev, ...newFiles]);
     }
   };
 
@@ -2114,6 +2192,17 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
         }
       }
 
+      // Add Post Tool files
+      if (usePostTool && postToolFiles.length > 0 && assetsFolder) {
+        const postFolderName = postToolFolder.trim() || 'PostToolFiles';
+        const postFolder = assetsFolder.folder(postFolderName);
+        if (postFolder) {
+          for (const item of postToolFiles) {
+            postFolder.file(item.path, item.file);
+          }
+        }
+      }
+
       // Generate the zip async
       const content = await zip.generateAsync({ type: "blob" });
       
@@ -3045,6 +3134,72 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                 onRemove={handleRemoveFile} 
                 onClearAll={() => setTranslationFiles([])} 
               />
+            )}
+
+            {usePostTool && (
+              <div className="mt-4 pt-3 border-t border-[#3E4B37]/30">
+                <div className="text-[11px] font-bold text-[#919B82] uppercase tracking-wider mb-2 flex items-center justify-between">
+                  <span>Dodatočné súbory (po Text Tool)</span>
+                </div>
+                <div className="space-y-3 mb-3">
+                  <input 
+                    type="file" 
+                    multiple
+                    className="hidden" 
+                    ref={postToolFilesInputRef} 
+                    onChange={handlePostToolFilesChange}
+                  />
+                  <input 
+                    type="file" 
+                    webkitdirectory=""
+                    multiple
+                    className="hidden" 
+                    ref={postToolFolderInputRef} 
+                    onChange={handlePostToolFolderChange}
+                  />
+                  
+                  <div 
+                    onDragEnter={handlePostToolDrag}
+                    onDragOver={handlePostToolDrag}
+                    onDragLeave={handlePostToolDrag}
+                    onDrop={(e) => { handlePostToolDrop(e); if(showValidationErrors) setShowValidationErrors(false); }}
+                    onClick={() => postToolFilesInputRef.current?.click()}
+                    className={`border border-dashed rounded-md p-5 text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1.5 ${
+                      isPostToolDragActive 
+                        ? "border-[#919B82] bg-[#3E4B37]/20 text-[#F5F7F2]" 
+                        : "border-[#3E4B37] bg-[#131A11]/40 text-[#919B82] hover:bg-[#3E4B37]/10 hover:border-[#919B82]"
+                    }`}
+                  >
+                    <FolderOpen className="w-6 h-6 opacity-75 text-[#919B82]" />
+                    <span className="text-[11px] font-semibold tracking-wide">
+                      {isPostToolDragActive ? t.dragAndDropActive : t.dragAndDropZone}
+                    </span>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); postToolFilesInputRef.current?.click(); }}
+                      className="flex-1 bg-transparent border border-[#3E4B37] text-[#919B82] rounded-[4px] py-1.5 text-[10px] lg:text-[11px] font-semibold cursor-pointer hover:bg-[#3E4B37]/20 transition-colors truncate px-2"
+                    >
+                      {t.addFilesBtn}
+                    </button>
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); postToolFolderInputRef.current?.click(); }}
+                      className="flex-1 bg-transparent border border-[#3E4B37] text-[#919B82] rounded-[4px] py-1.5 text-[10px] lg:text-[11px] font-semibold cursor-pointer hover:bg-[#3E4B37]/20 transition-colors truncate px-2"
+                    >
+                      {t.addFolderBtn}
+                    </button>
+                  </div>
+                </div>
+
+                {postToolFiles.length > 0 && (
+                  <FileList 
+                    files={postToolFiles} 
+                    onRemove={handleRemovePostToolFile} 
+                    onClearAll={() => setPostToolFiles([])} 
+                  />
+                )}
+              </div>
             )}
                     </div>
                   </motion.div>
