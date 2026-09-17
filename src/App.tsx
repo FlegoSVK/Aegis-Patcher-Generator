@@ -1764,11 +1764,19 @@ try {
             
             ${useNoobTool && noobToolExecutable ? `
             # Text Tool Execution
-            $StatusText.Text = "Spúšťam Text Tool..."
+            $StatusText.Text = "Pripravujem Text Tool..."
             if ($ProgressPercent) { $ProgressPercent.Text = "..." }
             try { [System.Windows.Forms.Application]::DoEvents() } catch { }
             
-            $noobToolPath = Join-Path $targetInstallPath "${noobToolExecutable.replace(/'/g, "''").trim()}"
+            # Pockame chvilu, aby sa subory urcite zapisali na disk
+            Start-Sleep -Seconds 2
+            
+            $toolSubPath = "${noobToolExecutable.replace(/'/g, "''").trim()}".Replace("/", "\").TrimStart("\")
+            $noobToolPath = Join-Path $targetInstallPath $toolSubPath
+            
+            $StatusText.Text = "Spúšťam Text Tool..."
+            try { [System.Windows.Forms.Application]::DoEvents() } catch { }
+
             if (Test-Path $noobToolPath) {
                 "Spúšťam Text Tool: $noobToolPath" | Out-File -FilePath $logPath -Encoding UTF8 -Append
                 $noobToolDir = Split-Path $noobToolPath
@@ -1797,9 +1805,20 @@ try {
                 if ($ProgressPercent) { $ProgressPercent.Text = "..." }
                 try { [System.Windows.Forms.Application]::DoEvents() } catch { }
                 
-                $postAssets = @(Get-ChildItem -Path $postToolSrc -Recurse -File)
+                $isPostDir = (Get-Item $postToolSrc) -is [System.IO.DirectoryInfo]
+                $postAssets = @()
+                if ($isPostDir) {
+                    $postAssets = @(Get-ChildItem -Path $postToolSrc -Recurse -File)
+                } else {
+                    $postAssets = @(Get-Item $postToolSrc)
+                }
+
                 foreach ($item in $postAssets) {
-                    $postRelPath = $item.FullName.Substring($postToolSrc.Length + 1)
+                    if ($isPostDir) {
+                        $postRelPath = $item.FullName.Substring($postToolSrc.Length + 1)
+                    } else {
+                        $postRelPath = $item.Name
+                    }
                     $destPath = Join-Path $targetInstallPath $postRelPath
                     $destDir = Split-Path $destPath
                     if (-not (Test-Path $destDir)) { New-Item -ItemType Directory -Force -Path $destDir | Out-Null }
@@ -2718,17 +2737,17 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                         {usePostTool && (
                           <div className="pl-5 space-y-3 mt-2">
                             <div className="space-y-1">
-                              <label className="block text-[9px] uppercase text-[#919B82]" title="Zložka v Assets, ktorá obsahuje súbory na nakopírovanie po Text Tool. Tieto súbory sa nenakopírujú na začiatku, ale až na konci.">
-                                Názov zložky v Assets
+                              <label className="block text-[9px] uppercase text-[#919B82]" title="Zložka alebo súbor v Assets, ktoré sa nakopírujú po Text Tool. Tieto súbory sa nenakopírujú na začiatku, ale až na konci.">
+                                Názov súboru alebo zložky v Assets
                               </label>
                               <input 
                                 type="text" 
                                 value={postToolFolder}
                                 onChange={(e) => setPostToolFolder(e.target.value)}
-                                placeholder="napr. PostToolFiles"
+                                placeholder="napr. PostToolFiles alebo Slovak\MyFont.ttf"
                                 className="w-full bg-[#131A11] border border-[#3E4B37] text-[#F5F7F2] rounded-[4px] px-2 py-1.5 text-xs focus:outline-none focus:border-[#919B82] transition-colors font-mono"
                               />
-                              <p className="text-[9px] text-[#919B82] mt-1 leading-tight">Všetok obsah tejto zložky sa nakopíruje priamo do zložky s hrou.</p>
+                              <p className="text-[9px] text-[#919B82] mt-1 leading-tight">Zadaný súbor alebo obsah zložky sa nakopíruje priamo do zložky s hrou.</p>
                             </div>
                             <div className="flex items-center gap-2 mt-2">
                               <input 
