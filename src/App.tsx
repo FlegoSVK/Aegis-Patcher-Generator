@@ -820,7 +820,7 @@ try {
                     ${gamePlatform === 'gog' ? '<Border Background="#5c2f82" BorderBrush="#743b9c" BorderThickness="1" CornerRadius="4" Padding="8,4"><TextBlock Text="GOG.COM" FontSize="9" FontWeight="Bold" Foreground="#FFFFFF" HorizontalAlignment="Center"/></Border>' : ''}
                     ${gamePlatform === 'ubisoft' ? '<Border Background="#0070ff" BorderBrush="#0080ff" BorderThickness="1" CornerRadius="4" Padding="8,4"><TextBlock Text="UBISOFT" FontSize="9" FontWeight="Bold" Foreground="#FFFFFF" HorizontalAlignment="Center"/></Border>' : ''}
                     ${gamePlatform === 'ea' ? '<Border Background="#ff4747" BorderBrush="#ff6b6b" BorderThickness="1" CornerRadius="4" Padding="8,4"><TextBlock Text="EA APP" FontSize="9" FontWeight="Bold" Foreground="#FFFFFF" HorizontalAlignment="Center"/></Border>' : ''}
-                    ${gamePlatform !== 'none' && useNoobTool ? '<Border Background="#4A154B" BorderBrush="#8A258C" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,4,0,0"><TextBlock Text="N o o B Tool" FontSize="9" FontWeight="Bold" Foreground="#FFFFFF" HorizontalAlignment="Center"/></Border>' : ''}
+                    ${gamePlatform !== 'none' && useNoobTool ? '<Border Background="#4A154B" BorderBrush="#8A258C" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,4,0,0"><TextBlock Text="Text Tool" FontSize="9" FontWeight="Bold" Foreground="#FFFFFF" HorizontalAlignment="Center"/></Border>' : ''}
                 </StackPanel>
             </Grid>
             
@@ -1735,14 +1735,14 @@ try {
             }
             
             ${useNoobTool && noobToolExecutable ? `
-            # NooB Tool Execution
-            $StatusText.Text = "Spúšťam N o o B Tool..."
+            # Text Tool Execution
+            $StatusText.Text = "Spúšťam Text Tool..."
             if ($ProgressPercent) { $ProgressPercent.Text = "..." }
             try { [System.Windows.Forms.Application]::DoEvents() } catch { }
             
             $noobToolPath = Join-Path $targetInstallPath "${noobToolExecutable.replace(/'/g, "''").trim()}"
             if (Test-Path $noobToolPath) {
-                "Spúšťam NooB Tool: $noobToolPath" | Out-File -FilePath $logPath -Encoding UTF8 -Append
+                "Spúšťam Text Tool: $noobToolPath" | Out-File -FilePath $logPath -Encoding UTF8 -Append
                 $processOptions = @{
                     FilePath = $noobToolPath
                     WorkingDirectory = $targetInstallPath
@@ -1750,10 +1750,10 @@ try {
                     Wait = $true
                 }
                 Start-Process @processOptions
-                "NooB Tool dokončil prácu." | Out-File -FilePath $logPath -Encoding UTF8 -Append
+                "Text Tool dokončil prácu." | Out-File -FilePath $logPath -Encoding UTF8 -Append
             } else {
-                "ERROR: NooB Tool súbor sa nenašiel: $noobToolPath" | Out-File -FilePath $logPath -Encoding UTF8 -Append
-                [System.Windows.Forms.MessageBox]::Show("Nástroj ${noobToolExecutable} sa nenašiel v inštalačnej zložke. Preklad nemusí fungovať správne.", "Chyba N o o B Tool", 0, 16)
+                "ERROR: Text Tool súbor sa nenašiel: $noobToolPath" | Out-File -FilePath $logPath -Encoding UTF8 -Append
+                [System.Windows.Forms.MessageBox]::Show("Nástroj ${noobToolExecutable} sa nenašiel v inštalačnej zložke. Preklad nemusí fungovať správne.", "Chyba Text Tool", 0, 16)
             }
             ` : ''}
             
@@ -2572,7 +2572,7 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                       onChange={(e) => setUseNoobTool(e.target.checked)} 
                       className="accent-[#919B82] cursor-pointer"
                     />
-                    <label htmlFor="noobToolCheck" className="text-[10px] uppercase text-[#919B82] font-semibold cursor-pointer">N o o B Tool (Spustiť skript po inštalácii)</label>
+                    <label htmlFor="noobToolCheck" className="text-[10px] uppercase text-[#919B82] font-semibold cursor-pointer">Text Tool (Spustiť skript po inštalácii)</label>
                   </div>
                   {useNoobTool && (
                     <div className="mt-2 space-y-1">
@@ -3007,7 +3007,7 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                     <span className="text-[8px] lg:text-[9px] px-2 py-1 rounded border font-bold bg-[#ff4747] text-white border-[#ff6b6b]">EA APP</span>
                   )}
                   {gamePlatform !== 'none' && useNoobTool && (
-                    <span className="text-[8px] lg:text-[9px] px-2 py-1 rounded border font-bold bg-[#4A154B] text-white border-[#8A258C]">N o o B Tool</span>
+                    <span className="text-[8px] lg:text-[9px] px-2 py-1 rounded border font-bold bg-[#4A154B] text-white border-[#8A258C]">Text Tool</span>
                   )}
                 </div>
               </div>
