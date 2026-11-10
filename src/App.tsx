@@ -2,7 +2,21 @@ import React, { useState, useRef, useEffect } from 'react';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import { FileList } from './components/FileList';
+import { EffectsSection } from './components/EffectsSection';
+import { EffectButton } from './components/EffectButton';
+import { ParticleBurst } from './components/ParticleBurst';
+import { AegisLogo } from './components/AegisLogo';
 import { translations, Language } from './translations';
+import { 
+  InstallerEffectConfig, 
+  loadStoredEffects, 
+  saveStoredEffects, 
+  generateSyntheticClickWav 
+} from './effectsConfig';
+import { 
+  generatePyQtInstallerScript, 
+  generatePyInstallerBatchScript 
+} from './pyqtGenerator';
 import { 
   Package, 
   Image as ImageIcon, 
@@ -12,7 +26,8 @@ import {
   FolderOpen,
   ChevronDown,
   X,
-  Copy
+  Copy,
+  Sparkles
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ReactCrop, { type Crop, PixelCrop, centerCrop, makeAspectCrop } from 'react-image-crop';
@@ -369,6 +384,17 @@ export default function App() {
   const [historySearch, setHistorySearch] = useState('');
   const [isCoreInfoExpanded, setIsCoreInfoExpanded] = useState(true);
   const [isMultimediaExpanded, setIsMultimediaExpanded] = useState(true);
+  const [isEffectsExpanded, setIsEffectsExpanded] = useState(true);
+
+  // Installer Effects State (Loaded & Saved via localStorage)
+  const [installerEffects, setInstallerEffects] = useState<InstallerEffectConfig>(() => loadStoredEffects());
+  const [shakePreviewTrigger, setShakePreviewTrigger] = useState(false);
+  const [previewBurstActive, setPreviewBurstActive] = useState(false);
+
+  const handleEffectsChange = (newEffects: InstallerEffectConfig) => {
+    setInstallerEffects(newEffects);
+    saveStoredEffects(newEffects);
+  };
 
   const isDuplicateName = history.some(item => item.gameName.toLowerCase() === gameName.toLowerCase());
 
@@ -2160,12 +2186,55 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
       // Batch launcher
       zip.file("Spustit_Preklad.bat", generateBatchScript());
 
+      // Modern PyQt6 Installer (installer.py) with user-selected modular effects
+      const pyqtScript = generatePyQtInstallerScript({
+        gameName,
+        author,
+        authorLink,
+        gameVersion,
+        translationVersion,
+        translationLink,
+        validationPath,
+        steamAppId,
+        colorBg,
+        colorSurface,
+        colorAccent,
+        textColorMain,
+        textColorSecondary,
+        colorTextTitle,
+        colorTextButton,
+        colorTextButtonPrimary,
+        supportText,
+        changelog,
+        thankYouText,
+        iban,
+        enableThankYouModule,
+        hasBanner: !!bannerFile,
+        hasQrCode: !!qrCodeFile,
+        hasAudio: false,
+        hasPostTool: usePostTool,
+        postToolFolder,
+        effects: installerEffects,
+        language,
+      });
+      zip.file("installer.py", pyqtScript);
+      zip.file("compile_pyqt.bat", generatePyInstallerBatchScript());
+
       // Readme instructions
       const readmeFileName = language === 'sk' ? "Navod_na_instalaciu.txt" : "Navod_k_instalaci.txt";
       zip.file(readmeFileName, "\uFEFF" + generateReadmeText());
 
       // Assets folder
       const assetsFolder = zip.folder("Assets");
+
+      // Include synthesized click audio asset for Sound Click Feedback
+      if (installerEffects.soundClickFeedback && assetsFolder) {
+        const audioFolder = assetsFolder.folder("audio");
+        if (audioFolder) {
+          const clickWavBuffer = generateSyntheticClickWav();
+          audioFolder.file("click.wav", clickWavBuffer);
+        }
+      }
       
       // Add banner
       if (bannerFile && assetsFolder) {
@@ -2337,52 +2406,86 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
         </div>
       )}
 
-      <header className="h-12 lg:h-14 border-b border-[#3E4B37]/30 flex items-center justify-between px-4 md:px-8 bg-[#0D110C] z-10 shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-[#3E4B37] rounded flex items-center justify-center font-bold text-sm">A</div>
-          <h1 className="text-lg font-bold tracking-tight uppercase hidden md:block">Aegis <span className="text-[#919B82]">Patcher Generator</span></h1>
+      <header className="h-14 lg:h-16 border-b border-[#2C3827]/70 flex items-center justify-between px-4 md:px-8 bg-[#0C110B]/90 backdrop-blur-md z-30 shrink-0 shadow-[0_4px_20px_rgba(0,0,0,0.4)]">
+        <div className="flex items-center gap-3.5">
+          <AegisLogo size={36} />
+          <div className="flex flex-col">
+            <div className="flex items-center gap-2">
+              <h1 className="text-base lg:text-lg font-black tracking-[0.16em] uppercase text-[#F5F7F2]">
+                AEGIS <span className="text-[#98AA8A] font-semibold">PATCHER</span>
+              </h1>
+              <span className="hidden sm:inline-block text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded bg-[#3E4B37]/30 border border-[#4E6245]/50 text-[#B8CCAB]">
+                STUDIO
+              </span>
+            </div>
+            <span className="text-[9px] uppercase tracking-wider text-[#919B82]/70 hidden md:block font-mono">
+              Next-Gen Game Localization & Patch Engine
+            </span>
+          </div>
+
           <button 
             onClick={resetToNewProject}
-            className="ml-2 text-[10px] md:text-[11px] uppercase tracking-wider bg-[#3E4B37]/20 border border-[#3E4B37] text-[#F5F7F2] font-bold py-1 px-3 rounded hover:bg-[#3E4B37]/40 transition-colors flex items-center gap-2 cursor-pointer"
+            className="ml-3 text-[10px] md:text-[11px] uppercase tracking-wider bg-[#1B2518] hover:bg-[#2A3B25] border border-[#3E4B37] hover:border-[#6C855E] text-[#F5F7F2] font-semibold py-1.5 px-3 rounded-md transition-all shadow-sm flex items-center gap-2 cursor-pointer active:scale-95"
+            title="Vytvoriť nový projekt inštalátora"
           >
-            <Package size={14} />
-            {(t as any).newProjectButton}
+            <Package size={13} className="text-[#9EBA8D]" />
+            <span>{(t as any).newProjectButton}</span>
           </button>
         </div>
-        <div className="flex items-center gap-4 md:gap-6 text-[9px] md:text-[11px] uppercase tracking-widest text-[#919B82]">
-          <div className="flex bg-[#131A11] border border-[#3E4B37] rounded overflow-hidden">
+
+        <div className="flex items-center gap-3 md:gap-5 text-[10px] md:text-[11px] tracking-wide text-[#919B82]">
+          {/* Segmented Studio Language Switcher */}
+          <div className="flex bg-[#121810] border border-[#2B3925] rounded-md p-0.5 shadow-inner">
             <button 
               onClick={() => setLanguage('sk')}
-              className={`px-2 py-1 font-bold ${language === 'sk' ? 'bg-[#3E4B37] text-white' : 'hover:bg-[#3E4B37]/30'}`}
+              className={`px-2.5 py-1 rounded text-[10px] font-bold transition-all cursor-pointer ${
+                language === 'sk' 
+                  ? 'bg-[#3E4B37] text-white shadow-sm' 
+                  : 'text-[#919B82] hover:text-[#F5F7F2]'
+              }`}
             >
               SK
             </button>
             <button 
               onClick={() => setLanguage('cz')}
-              className={`px-2 py-1 font-bold ${language === 'cz' ? 'bg-[#3E4B37] text-white' : 'hover:bg-[#3E4B37]/30'}`}
+              className={`px-2.5 py-1 rounded text-[10px] font-bold transition-all cursor-pointer ${
+                language === 'cz' 
+                  ? 'bg-[#3E4B37] text-white shadow-sm' 
+                  : 'text-[#919B82] hover:text-[#F5F7F2]'
+              }`}
             >
               CZ
             </button>
           </div>
+
           <button 
             onClick={() => setShowHistoryModal(true)}
-            className="hover:text-[#F5F7F2] transition-colors border border-[#3E4B37] rounded px-3 py-1.5 hover:bg-[#3E4B37]/20 flex items-center gap-1 cursor-pointer"
+            className="text-[11px] font-medium text-[#B8C7AF] hover:text-[#F5F7F2] transition-all border border-[#2B3925] hover:border-[#4E6245] bg-[#121810] hover:bg-[#1A2317] rounded-md px-3 py-1.5 flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95"
           >
-            {t.historyBtn}
+            <span>{t.historyBtn}</span>
+            {history.length > 0 && (
+              <span className="w-4 h-4 rounded-full bg-[#3E4B37] text-[9px] font-bold flex items-center justify-center text-white">
+                {history.length}
+              </span>
+            )}
           </button>
-          <span className="hidden sm:inline opacity-50">Vytvoril: Flego</span>
+
+          <div className="hidden lg:flex items-center gap-1.5 text-[10px] text-[#5A6D51] font-mono border-l border-[#2B3925] pl-4">
+            <span>dev:</span>
+            <span className="text-[#919B82]">Flego</span>
+          </div>
         </div>
       </header>
 
       <main className="flex-1 overflow-y-auto lg:overflow-hidden flex flex-col lg:grid lg:grid-cols-[380px_1fr] xl:grid-cols-[400px_1fr]">
         
         {/* LEFT: Controls Panel */}
-        <aside className="border-b lg:border-b-0 lg:border-r border-[#3E4B37]/20 flex flex-col bg-[#0D110C] z-10 lg:overflow-hidden min-h-[600px] lg:min-h-0">
-          <div className="flex-1 overflow-y-auto px-5 py-4 lg:px-6 lg:py-5 flex flex-col gap-5 custom-scrollbar">
-            <section className="bg-[#131A11] border border-[#3E4B37]/30 rounded-md shrink-0 focus-within:ring-1 focus-within:ring-[#3E4B37]/50">
+        <aside className="border-b lg:border-b-0 lg:border-r border-[#2C3827]/40 flex flex-col bg-[#0A0E0A] z-10 lg:overflow-hidden min-h-[600px] lg:min-h-0">
+          <div className="flex-1 overflow-y-auto px-4 py-4 lg:px-5 lg:py-5 flex flex-col gap-4 custom-scrollbar">
+            <section className="bg-[#10160F] border border-[#273522] hover:border-[#384931] transition-colors rounded-lg shrink-0 shadow-sm overflow-hidden">
               <button 
                 onClick={() => setIsCoreInfoExpanded(!isCoreInfoExpanded)}
-                className="w-full px-4 py-3 flex items-center justify-between text-[11px] font-bold text-[#919B82] hover:text-[#F5F7F2] hover:bg-[#3E4B37]/10 uppercase tracking-wider transition-colors cursor-pointer"
+                className="w-full px-4 py-3 flex items-center justify-between text-[11px] font-bold text-[#A4B599] hover:text-[#F5F7F2] hover:bg-[#1C261A]/40 uppercase tracking-wider transition-colors cursor-pointer"
               >
                 <span>{t.coreInfoSection}</span>
                 <motion.div
@@ -2401,12 +2504,12 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                     transition={{ duration: 0.3, ease: "easeInOut" }}
                     className="overflow-hidden"
                   >
-                    <div className="px-4 pb-4 pt-1 space-y-3 border-t border-[#3E4B37]/20">
-              <div className="space-y-1">
-                <label className="block text-[9px] uppercase text-[#919B82] ml-1 flex justify-between items-center" title={t.gameNameTooltip}>
+                    <div className="px-4 pb-4 pt-1 space-y-3.5 border-t border-[#232F1E]/80">
+              <div className="space-y-1.5">
+                <label className="block text-[10px] font-medium tracking-wide uppercase text-[#8FA185] ml-0.5 flex justify-between items-center" title={t.gameNameTooltip}>
                   <span>{t.gameNameInput}</span>
                   {isDuplicateName && (
-                    <span className="text-amber-500 font-bold animate-pulse">
+                    <span className="text-amber-400 font-semibold tracking-normal text-[9px] animate-pulse">
                       ⚠️ {(t as any).duplicateWarning}
                     </span>
                   )}
@@ -2415,56 +2518,56 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                   type="text" 
                   value={gameName}
                   onChange={(e) => { setGameName(e.target.value); if(showValidationErrors) setShowValidationErrors(false); }}
-                  className={`w-full bg-[#131A11] border ${isDuplicateName ? 'border-amber-500/50' : showValidationErrors && !gameName ? 'border-red-500 bg-red-500/5' : 'border-[#3E4B37]'} text-[#F5F7F2] rounded-[4px] px-2 py-1.5 text-xs focus:outline-none focus:border-[#919B82] transition-colors`}
+                  className={`w-full bg-[#0D120C] border ${isDuplicateName ? 'border-amber-500/60' : showValidationErrors && !gameName ? 'border-red-500 bg-red-500/10' : 'border-[#273522] focus:border-[#6C855E] focus:ring-1 focus:ring-[#6C855E]/30'} text-[#F5F7F2] rounded-md px-3 py-2 text-xs focus:outline-none transition-all`}
                 />
               </div>
               
               <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="block text-[9px] uppercase text-[#919B82] ml-1" title={t.authorTooltip}>{t.authorInput}</label>
+                <div className="space-y-1.5">
+                  <label className="block text-[10px] font-medium tracking-wide uppercase text-[#8FA185] ml-0.5" title={t.authorTooltip}>{t.authorInput}</label>
                   <input 
                     type="text" 
                     value={author}
                     onChange={(e) => { setAuthor(e.target.value); if(showValidationErrors) setShowValidationErrors(false); }}
-                    className={`w-full bg-[#131A11] border ${showValidationErrors && !author ? 'border-red-500 bg-red-500/5' : 'border-[#3E4B37]'} text-[#F5F7F2] rounded-[4px] px-2 py-1.5 text-xs focus:outline-none focus:border-[#919B82] transition-colors`}
+                    className={`w-full bg-[#0D120C] border ${showValidationErrors && !author ? 'border-red-500 bg-red-500/10' : 'border-[#273522] focus:border-[#6C855E] focus:ring-1 focus:ring-[#6C855E]/30'} text-[#F5F7F2] rounded-md px-3 py-2 text-xs focus:outline-none transition-all`}
                   />
                 </div>
 
-                <div className="space-y-1">
-                  <label className="block text-[9px] uppercase text-[#919B82] ml-1" title={t.authorLinkTooltip}>{t.authorLinkInput}</label>
+                <div className="space-y-1.5">
+                  <label className="block text-[10px] font-medium tracking-wide uppercase text-[#8FA185] ml-0.5" title={t.authorLinkTooltip}>{t.authorLinkInput}</label>
                   <input 
                     type="text" 
                     value={authorLink}
                     onChange={(e) => setAuthorLink(e.target.value)}
-                    className="w-full bg-[#131A11] border border-[#3E4B37] text-[#F5F7F2] rounded-[4px] px-2 py-1.5 text-xs focus:outline-none focus:border-[#919B82] transition-colors"
+                    className="w-full bg-[#0D120C] border border-[#273522] focus:border-[#6C855E] focus:ring-1 focus:ring-[#6C855E]/30 text-[#F5F7F2] rounded-md px-3 py-2 text-xs focus:outline-none transition-all"
                   />
                 </div>
               </div>
               
               <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="block text-[9px] uppercase text-[#919B82] ml-1" title={t.transVersionTooltip}>{t.transVersionInput}</label>
+                <div className="space-y-1.5">
+                  <label className="block text-[10px] font-medium tracking-wide uppercase text-[#8FA185] ml-0.5" title={t.transVersionTooltip}>{t.transVersionInput}</label>
                   <input 
                     type="text" 
                     value={translationVersion}
                     onChange={(e) => { setTranslationVersion(e.target.value); if(showValidationErrors) setShowValidationErrors(false); }}
-                    className={`w-full bg-[#131A11] border ${showValidationErrors && !translationVersion ? 'border-red-500 bg-red-500/5' : 'border-[#3E4B37]'} text-[#F5F7F2] rounded-[4px] px-2 py-1.5 text-xs focus:outline-none focus:border-[#919B82] transition-colors`}
+                    className={`w-full bg-[#0D120C] border ${showValidationErrors && !translationVersion ? 'border-red-500 bg-red-500/10' : 'border-[#273522] focus:border-[#6C855E] focus:ring-1 focus:ring-[#6C855E]/30'} text-[#F5F7F2] rounded-md px-3 py-2 text-xs focus:outline-none transition-all`}
                   />
                 </div>
                 
-                <div className="space-y-1">
-                  <label className="block text-[9px] uppercase text-[#919B82] ml-1" title={t.gameVersionTooltip}>{t.gameVersionInput}</label>
+                <div className="space-y-1.5">
+                  <label className="block text-[10px] font-medium tracking-wide uppercase text-[#8FA185] ml-0.5" title={t.gameVersionTooltip}>{t.gameVersionInput}</label>
                   <input 
                     type="text" 
                     value={gameVersion}
                     onChange={(e) => { setGameVersion(e.target.value); if(showValidationErrors) setShowValidationErrors(false); }}
-                    className={`w-full bg-[#131A11] border ${showValidationErrors && !gameVersion ? 'border-red-500 bg-red-500/5' : 'border-[#3E4B37]'} text-[#F5F7F2] rounded-[4px] px-2 py-1.5 text-xs focus:outline-none focus:border-[#919B82] transition-colors`}
+                    className={`w-full bg-[#0D120C] border ${showValidationErrors && !gameVersion ? 'border-red-500 bg-red-500/10' : 'border-[#273522] focus:border-[#6C855E] focus:ring-1 focus:ring-[#6C855E]/30'} text-[#F5F7F2] rounded-md px-3 py-2 text-xs focus:outline-none transition-all`}
                   />
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <label className="block text-[9px] uppercase text-[#919B82] ml-1" title={t.transLinkTooltip}>{t.transLinkInput}</label>
+              <div className="space-y-1.5">
+                <label className="block text-[10px] font-medium tracking-wide uppercase text-[#8FA185] ml-0.5" title={t.transLinkTooltip}>{t.transLinkInput}</label>
                 <input 
                   type="text" 
                   value={translationLink}
@@ -2714,58 +2817,58 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                 </AnimatePresence>
               </div>
 
-              <div className="space-y-1">
-                <label className="block text-[9px] uppercase text-[#919B82] ml-1" title={t.validationPathTooltip}>{t.validationPathInput}</label>
+              <div className="space-y-1.5">
+                <label className="block text-[10px] font-medium tracking-wide uppercase text-[#8FA185] ml-0.5" title={t.validationPathTooltip}>{t.validationPathInput}</label>
                 <input 
                   type="text" 
                   value={validationPath}
                   onChange={(e) => { setValidationPath(e.target.value); if(showValidationErrors) setShowValidationErrors(false); }}
                   placeholder="napr. Crimson Desert"
-                  className={`w-full bg-[#131A11] border ${showValidationErrors && !validationPath ? 'border-red-500 bg-red-500/5' : 'border-[#3E4B37]'} text-[#F5F7F2] rounded-[4px] px-2 py-1.5 text-xs focus:outline-none focus:border-[#919B82] transition-colors font-mono`}
+                  className={`w-full bg-[#0D120C] border ${showValidationErrors && !validationPath ? 'border-red-500 bg-red-500/10' : 'border-[#273522] focus:border-[#6C855E] focus:ring-1 focus:ring-[#6C855E]/30'} text-[#F5F7F2] rounded-md px-3 py-2 text-xs focus:outline-none transition-all font-mono`}
                 />
               </div>
 
-              <div className="space-y-1">
-                <label className="block text-[9px] uppercase text-[#919B82] ml-1">Platforma (Pre automatické vyhľadanie)</label>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-[1px] bg-[#3E4B37] border border-[#3E4B37] rounded overflow-hidden text-[10px] text-[#F5F7F2]">
+              <div className="space-y-1.5">
+                <label className="block text-[10px] font-medium tracking-wide uppercase text-[#8FA185] ml-0.5">Platforma (Pre automatické vyhľadanie)</label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 p-1 bg-[#0D120C] border border-[#273522] rounded-lg text-[10px] text-[#F5F7F2]">
                   <button 
-                    className={`px-1 py-1.5 font-semibold transition-colors ${gamePlatform === 'none' ? 'bg-[#3E4B37] text-white' : 'bg-[#131A11] hover:bg-[#3E4B37]/30'}`}
+                    className={`py-1.5 px-2 rounded font-semibold transition-all cursor-pointer ${gamePlatform === 'none' ? 'bg-[#3E4B37] text-white shadow-sm' : 'text-[#8FA185] hover:bg-[#1A2417] hover:text-[#F5F7F2]'}`}
                     onClick={() => setGamePlatform('none')}
                   >
                     Žiadna
                   </button>
                   <button 
-                    className={`px-1 py-1.5 font-semibold transition-colors ${gamePlatform === 'steam' ? 'bg-[#1A2B3C] text-[#66C0F4]' : 'bg-[#131A11] hover:bg-[#1A2B3C]/30'}`}
+                    className={`py-1.5 px-2 rounded font-semibold transition-all cursor-pointer ${gamePlatform === 'steam' ? 'bg-[#1A2B3C] text-[#66C0F4] border border-[#2A475E]' : 'text-[#8FA185] hover:bg-[#1A2B3C]/40 hover:text-white'}`}
                     onClick={() => setGamePlatform('steam')}
                   >
                     Steam
                   </button>
                   <button 
-                    className={`px-1 py-1.5 font-semibold transition-colors ${gamePlatform === 'xbox' ? 'bg-[#107C10] text-white' : 'bg-[#131A11] hover:bg-[#107C10]/30'}`}
+                    className={`py-1.5 px-2 rounded font-semibold transition-all cursor-pointer ${gamePlatform === 'xbox' ? 'bg-[#107C10] text-white shadow-sm' : 'text-[#8FA185] hover:bg-[#107C10]/40 hover:text-white'}`}
                     onClick={() => setGamePlatform('xbox')}
                   >
                     Xbox
                   </button>
                   <button 
-                    className={`px-1 py-1.5 font-semibold transition-colors ${gamePlatform === 'epic' ? 'bg-[#2a2a2a] text-white' : 'bg-[#131A11] hover:bg-[#2a2a2a]/30'}`}
+                    className={`py-1.5 px-2 rounded font-semibold transition-all cursor-pointer ${gamePlatform === 'epic' ? 'bg-[#262626] text-white border border-[#3E3E3E]' : 'text-[#8FA185] hover:bg-[#262626]/60 hover:text-white'}`}
                     onClick={() => setGamePlatform('epic')}
                   >
                     Epic
                   </button>
                   <button 
-                    className={`px-1 py-1.5 font-semibold transition-colors ${gamePlatform === 'gog' ? 'bg-[#5c2f82] text-white' : 'bg-[#131A11] hover:bg-[#5c2f82]/30'}`}
+                    className={`py-1.5 px-2 rounded font-semibold transition-all cursor-pointer ${gamePlatform === 'gog' ? 'bg-[#5c2f82] text-white border border-[#743b9c]' : 'text-[#8FA185] hover:bg-[#5c2f82]/40 hover:text-white'}`}
                     onClick={() => setGamePlatform('gog')}
                   >
                     GOG
                   </button>
                   <button 
-                    className={`px-1 py-1.5 font-semibold transition-colors ${gamePlatform === 'ubisoft' ? 'bg-[#0070ff] text-white' : 'bg-[#131A11] hover:bg-[#0070ff]/30'}`}
+                    className={`py-1.5 px-2 rounded font-semibold transition-all cursor-pointer ${gamePlatform === 'ubisoft' ? 'bg-[#0070ff] text-white border border-[#0080ff]' : 'text-[#8FA185] hover:bg-[#0070ff]/40 hover:text-white'}`}
                     onClick={() => setGamePlatform('ubisoft')}
                   >
                     Ubisoft
                   </button>
                   <button 
-                    className={`px-1 py-1.5 font-semibold transition-colors ${gamePlatform === 'ea' ? 'bg-[#ff4747] text-white' : 'bg-[#131A11] hover:bg-[#ff4747]/30'}`}
+                    className={`py-1.5 px-2 rounded font-semibold transition-all cursor-pointer ${gamePlatform === 'ea' ? 'bg-[#ff4747] text-white border border-[#ff6b6b]' : 'text-[#8FA185] hover:bg-[#ff4747]/40 hover:text-white'}`}
                     onClick={() => setGamePlatform('ea')}
                   >
                     EA
@@ -3206,15 +3309,58 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                 )}
               </AnimatePresence>
           </section>
+
+          {/* EFFECTS SECTION (10+ Modern Visual & Audio Effects) */}
+          <section className="border-b border-[#3E4B37]/20">
+            <button
+              type="button"
+              onClick={() => setIsEffectsExpanded(!isEffectsExpanded)}
+              className="w-full px-4 py-3 flex items-center justify-between text-[11px] font-bold text-[#919B82] hover:text-[#F5F7F2] hover:bg-[#3E4B37]/10 uppercase tracking-wider transition-colors cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                <Sparkles size={13} className="text-[#919B82]" />
+                <span>{t.effectsSectionTitle}</span>
+              </div>
+              <motion.div
+                animate={{ rotate: isEffectsExpanded ? 180 : 0 }}
+                transition={{ duration: 0.2, ease: "easeInOut" }}
+              >
+                <ChevronDown size={14} />
+              </motion.div>
+            </button>
+            <AnimatePresence initial={false}>
+              {isEffectsExpanded && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.3, ease: "easeInOut" }}
+                  className="overflow-hidden"
+                >
+                  <div className="px-4 pb-4 pt-2 border-t border-[#3E4B37]/20">
+                    <EffectsSection
+                      effects={installerEffects}
+                      onChange={handleEffectsChange}
+                      t={t}
+                    />
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </section>
           </div>
 
-          <div className="p-4 md:px-5 md:py-4 border-t border-[#3E4B37]/20 shrink-0 bg-[#0D110C]">
+          <div className="p-4 md:px-5 md:py-4 border-t border-[#273522]/80 shrink-0 bg-[#0A0E0A]/95 backdrop-blur-md">
             <button
               onClick={handleGenerate}
               disabled={isGenerating}
-              className="w-full bg-[#3E4B37] text-[#F5F7F2] rounded-[4px] py-2 lg:py-2.5 font-bold text-sm uppercase tracking-widest shadow-lg shadow-[#1A2416] border-none cursor-pointer hover:bg-[#4d5c44] transition-all duration-200 disabled:opacity-50"
+              className="relative group w-full bg-gradient-to-r from-[#3E4F36] via-[#4D6343] to-[#3E4F36] text-[#F5F7F2] rounded-lg py-3 px-4 font-bold text-xs uppercase tracking-[0.16em] shadow-[0_4px_16px_rgba(45,60,38,0.45)] border border-[#5E7952]/70 cursor-pointer hover:border-[#8EAF7F] hover:shadow-[0_4px_22px_rgba(78,105,68,0.6)] transition-all duration-200 disabled:opacity-50 active:scale-[0.99] flex items-center justify-center gap-2 overflow-hidden"
             >
-              {isGenerating ? t.generateBtnLoading : t.generateBtn}
+              <span className="pointer-events-none absolute inset-0 -translate-x-full group-hover:animate-shimmer bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-[-20deg]" />
+              <Download size={15} className={`transition-transform duration-200 group-hover:-translate-y-0.5 ${isGenerating ? 'animate-bounce' : ''}`} />
+              <span className="relative z-10 font-black">
+                {isGenerating ? t.generateBtnLoading : t.generateBtn}
+              </span>
             </button>
           </div>
         </aside>
@@ -3356,9 +3502,16 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                   <div className="flex-1 border px-2 h-8 text-[11px] lg:text-xs flex items-center" style={{ color: textColorMain, backgroundColor: colorSurface, borderColor: `${colorAccent}4C` }}>
                     
                   </div>
-                  <button className="w-[100px] h-8 border-none text-[11px] hover:opacity-80 cursor-pointer transition-all hover:shadow-[0_0_8px_rgba(255,255,255,0.05)] shrink-0 rounded-sm" style={{ backgroundColor: `${colorAccent}4C`, color: colorTextButton }}>
+                  <EffectButton
+                    effects={installerEffects}
+                    isPrimary={false}
+                    accentColor={colorAccent}
+                    surfaceColor={colorSurface}
+                    textColor={colorTextButton}
+                    className="w-[100px] h-8 text-[11px] shrink-0 rounded-sm border"
+                  >
                     {t.previewBrowse}
-                  </button>
+                  </EffectButton>
                 </div>
               </div>
               
@@ -3373,15 +3526,48 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                   </div>
                 </div>
                 <div className="flex gap-[10px] justify-end pb-1 lg:pb-0">
-                  <button className={`w-[100px] h-8 border-none text-[11px] lg:text-xs cursor-pointer transition-all rounded-sm ${previewStep === 2 ? 'opacity-50 pointer-events-none' : 'hover:opacity-80 hover:shadow-[0_0_8px_rgba(255,255,255,0.05)]'}`} style={{ backgroundColor: `${colorAccent}4C`, color: colorTextButton }}>
+                  <EffectButton
+                    effects={installerEffects}
+                    isPrimary={false}
+                    accentColor={colorAccent}
+                    surfaceColor={colorSurface}
+                    textColor={colorTextButton}
+                    className={`w-[100px] h-8 text-[11px] lg:text-xs rounded-sm border ${previewStep === 2 ? 'opacity-50 pointer-events-none' : ''}`}
+                  >
                     {t.previewClose}
-                  </button>
-                  <button className="w-[140px] h-8 text-[11px] lg:text-xs font-bold border-none cursor-pointer hover:opacity-90 transition-all hover:-translate-y-[1px] rounded-sm" style={{ color: colorTextButtonPrimary, backgroundColor: colorAccent }}>
+                  </EffectButton>
+                  <EffectButton
+                    effects={installerEffects}
+                    isPrimary={true}
+                    accentColor={colorAccent}
+                    surfaceColor={colorSurface}
+                    textColor={colorTextButtonPrimary}
+                    shakeTrigger={shakePreviewTrigger}
+                    onClick={() => {
+                      if (previewStep === 1) {
+                        setPreviewStep(2);
+                        if (installerEffects.successParticleBurst) {
+                          setPreviewBurstActive(true);
+                          setTimeout(() => setPreviewBurstActive(false), 1400);
+                        }
+                      } else if (previewStep === 2) {
+                        // Reset to step 1 or test shake
+                        setShakePreviewTrigger(true);
+                        setTimeout(() => setShakePreviewTrigger(false), 400);
+                      }
+                    }}
+                    className="w-[140px] h-8 text-[11px] lg:text-xs font-bold rounded-sm border"
+                  >
                     {previewStep === 2 ? 'HOTOVO' : t.previewInstall}
-                  </button>
+                  </EffectButton>
                 </div>
               </div>
             </div>
+
+            {/* Particle Burst Overlay */}
+            {installerEffects.successParticleBurst && (
+              <ParticleBurst active={previewBurstActive} accentColor={colorAccent} />
+            )}
 
             {/* Thank You Mockup (Step 3) */}
             {(previewStep === 3 || previewStep === 4) && enableThankYouModule && (
@@ -3393,13 +3579,29 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
                     </p>
                   </div>
                   <div className="flex gap-4 justify-between pt-4 mt-auto border-t" style={{ borderColor: `${colorAccent}4C` }}>
-                    <button className="flex-1 h-[36px] lg:h-10 border-none text-[10px] lg:text-[11px] hover:opacity-80 cursor-pointer transition-all hover:-translate-y-[1px] rounded" style={{ backgroundColor: `${colorAccent}4C`, color: colorTextButton }}>
+                    <EffectButton
+                      effects={installerEffects}
+                      isPrimary={false}
+                      accentColor={colorAccent}
+                      surfaceColor={colorSurface}
+                      textColor={colorTextButton}
+                      onClick={() => setPreviewStep(1)}
+                      className="flex-1 h-[36px] lg:h-10 text-[10px] lg:text-[11px] rounded border"
+                    >
                       {(t as any).thankYouBtnClose}
-                    </button>
+                    </EffectButton>
                     {(qrCodePreview || iban) && (
-                      <button className="flex-1 h-[36px] lg:h-10 border-none text-[10px] lg:text-[11px] font-bold hover:opacity-90 cursor-pointer transition-all hover:-translate-y-[1px] rounded" style={{ backgroundColor: colorAccent, color: colorTextButtonPrimary }}>
+                      <EffectButton
+                        effects={installerEffects}
+                        isPrimary={true}
+                        accentColor={colorAccent}
+                        surfaceColor={colorSurface}
+                        textColor={colorTextButtonPrimary}
+                        onClick={() => setPreviewStep(4)}
+                        className="flex-1 h-[36px] lg:h-10 text-[10px] lg:text-[11px] font-bold rounded border"
+                      >
                         {(t as any).thankYouBtnSupport}
-                      </button>
+                      </EffectButton>
                     )}
                   </div>
               </div>

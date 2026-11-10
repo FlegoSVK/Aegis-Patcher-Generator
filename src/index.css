@@ -5,22 +5,66 @@
 }
 
 body {
-  background-color: #0D110C;
+  background-color: #0A0E0A;
   color: #F5F7F2;
   margin: 0;
   overflow: hidden;
+  background-image: 
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(62, 75, 55, 0.18), transparent),
+    radial-gradient(circle at 100% 100%, rgba(30, 42, 26, 0.12), transparent);
 }
 
 .custom-scrollbar::-webkit-scrollbar {
-  width: 6px;
+  width: 5px;
+  height: 5px;
 }
 .custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
+  background: rgba(13, 17, 12, 0.5);
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background-color: #3E4B37;
-  border-radius: 10px;
+  background-color: rgba(62, 75, 55, 0.6);
+  border-radius: 8px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background-color: #919B82;
+  background-color: rgba(145, 155, 130, 0.85);
+}
+
+@keyframes ripple-anim {
+  0% {
+    width: 0px;
+    height: 0px;
+    opacity: 0.8;
+  }
+  100% {
+    width: 260px;
+    height: 260px;
+    opacity: 0;
+  }
+}
+
+.animate-ripple {
+  animation: ripple-anim 0.45s ease-out forwards;
+}
+
+@keyframes shimmer-anim {
+  0% {
+    transform: translateX(-100%) skewX(-20deg);
+  }
+  100% {
+    transform: translateX(200%) skewX(-20deg);
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer-anim 0.8s ease-in-out forwards;
+}
+
+@keyframes shake-anim {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-6px); }
+  40%, 80% { transform: translateX(6px); }
+}
+
+.animate-shake {
+  animation: shake-anim 0.35s ease-in-out;
 }

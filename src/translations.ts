@@ -198,7 +198,33 @@ export const translations = {
     readmeUninstStep2: '2. Uistite sa, že máte vybratú správnu cestu k hre.',
     readmeUninstStep3: '3. Objaví sa tlačidlo "Odinštalovať". Kliknite naň.',
     readmeUninstStep4: '4. Inštalátor zmaže preložené súbory a obnoví originálne herné súbory zo zálohy (ak sa prepisovali).',
-    readmeEnjoy: 'Užite si preklad!'
+    readmeEnjoy: 'Užite si preklad!',
+
+    // Effects Section
+    effectsSectionTitle: 'Efekty inštalátora',
+    effectsSectionDesc: 'Výber moderných vizuálnych a zvukových efektov pre finálny PyQt6 inštalátor (installer.py). Voľby sa automaticky ukladajú do pamäte prehliadača.',
+    effectsEnableAll: 'Zapnúť všetky',
+    effectsDisableAll: 'Vypnúť všetky',
+    effectRippleTitle: 'Ripple Effect',
+    effectRippleDesc: 'Vlnová animácia pri kliknutí šíriaca sa z presného bodu dotyku myši.',
+    effectHoverGlowTitle: 'Hover Glow / Shimmer',
+    effectHoverGlowDesc: 'Svetelný prechod reflexu (odlesku) cez tlačidlo pri prejdení myšou.',
+    effectDepthOffsetTitle: 'Pressed Depth Offset',
+    effectDepthOffsetDesc: 'Fyzické stlačenie a jemný pokles obsahu tlačidla smerom dovnútra.',
+    effectNeonPulseTitle: 'Neon Pulse / Breathing',
+    effectNeonPulseDesc: 'Jemné pulzovanie okrajov hlavného tlačidla vo farbe akcentu.',
+    effectSoundFeedbackTitle: 'Sound Click Feedback',
+    effectSoundFeedbackDesc: 'Prehratie mechanického/sci-fi zvuku pri kliknutí na tlačidlá.',
+    effectParticleBurstTitle: 'Success Particle Burst',
+    effectParticleBurstDesc: 'Krátka časticová/konfetová animácia po dokončení inštalácie.',
+    effectScaleBounceTitle: 'Scale Bounce on Hover',
+    effectScaleBounceDesc: 'Mierne plynulé zväčšenie tlačidla pri nájazde kurzorom myši.',
+    effectShakeErrorTitle: 'Shake Error Animation',
+    effectShakeErrorDesc: 'Zatresenie tlačidlom pri neúspešnej akcii alebo chýbajúcej ceste.',
+    effectGlassmorphismTitle: 'Glassmorphism Blur',
+    effectGlassmorphismDesc: 'Sklenený rozostrený odlesk a jemný backdrop efekt v pozadí.',
+    effectColorFadeTitle: 'Smooth Color Fade',
+    effectColorFadeDesc: 'Plynulý prechod farieb pri zmene interakčného stavu.'
   },
   cz: {
     // Header & Meta
@@ -397,6 +423,32 @@ export const translations = {
     readmeUninstStep2: '2. Ujistěte se, že máte vybranou správnou cestu k hře.',
     readmeUninstStep3: '3. Objeví se tlačítko "Odinstalovat". Klikněte na něj.',
     readmeUninstStep4: '4. Instalátor smaže přeložené soubory a obnoví originální herní soubory ze zálohy (pokud se přepisovaly).',
-    readmeEnjoy: 'Užijte si překlad!'
+    readmeEnjoy: 'Užijte si překlad!',
+
+    // Effects Section
+    effectsSectionTitle: 'Efekty instalátoru',
+    effectsSectionDesc: 'Výběr moderních vizuálních a zvukových efektů pro finální PyQt6 instalátor (installer.py). Volby se automaticky ukládají do paměti prohlížeče.',
+    effectsEnableAll: 'Zapnout všechny',
+    effectsDisableAll: 'Vypnout všechny',
+    effectRippleTitle: 'Ripple Effect',
+    effectRippleDesc: 'Vlnová animace při kliknutí šířící se z přesného bodu dotyku myši.',
+    effectHoverGlowTitle: 'Hover Glow / Shimmer',
+    effectHoverGlowDesc: 'Světelný přechod reflexu (odlesku) přes tlačítko při najetí myší.',
+    effectDepthOffsetTitle: 'Pressed Depth Offset',
+    effectDepthOffsetDesc: 'Fyzické stlačení a jemný pokles obsahu tlačítka směrem dovnitř.',
+    effectNeonPulseTitle: 'Neon Pulse / Breathing',
+    effectNeonPulseDesc: 'Jemné pulzování okrajů hlavního tlačítka v barvě akcentu.',
+    effectSoundFeedbackTitle: 'Sound Click Feedback',
+    effectSoundFeedbackDesc: 'Přehrání mechanického/sci-fi zvuku při kliknutí na tlačítka.',
+    effectParticleBurstTitle: 'Success Particle Burst',
+    effectParticleBurstDesc: 'Krátká částicová/konfetová animace po dokončení instalace.',
+    effectScaleBounceTitle: 'Scale Bounce on Hover',
+    effectScaleBounceDesc: 'Mírné plynulé zvětšení tlačítka při najetí kurzorem myši.',
+    effectShakeErrorTitle: 'Shake Error Animation',
+    effectShakeErrorDesc: 'Zatřesení tlačítkem při neúspěšné akci nebo chybějící cestě.',
+    effectGlassmorphismTitle: 'Glassmorphism Blur',
+    effectGlassmorphismDesc: 'Skleněný rozostřený odlesk a jemný backdrop efekt v pozadí.',
+    effectColorFadeTitle: 'Smooth Color Fade',
+    effectColorFadeDesc: 'Plynulý přechod barev při změně interakčního stavu.'
   }
 };
