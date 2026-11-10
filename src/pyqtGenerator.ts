@@ -101,10 +101,11 @@ export function generatePyQtInstallerScript(options: PyInstallerScriptOptions): 
     'import json',
     'import webbrowser',
     'from pathlib import Path',
+    'try:\n    import winsound\nexcept ImportError:\n    winsound = None',
     'from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,',
     '                             QLabel, QPushButton, QProgressBar, QFileDialog, QMessageBox,',
     '                             QFrame, QGraphicsDropShadowEffect, QScrollArea, QDialog)',
-    'from PyQt6.QtCore import Qt, QPoint, QRect, QRectF, QPropertyAnimation, QEasingCurve, pyqtProperty, pyqtSignal, QThread',
+    'from PyQt6.QtCore import Qt, QPoint, QPointF, QRect, QRectF, QPropertyAnimation, QEasingCurve, pyqtProperty, pyqtSignal, QThread',
     'from PyQt6.QtGui import QColor, QPainter, QPainterPath, QPen, QBrush, QFont, QPixmap, QIcon, QLinearGradient',
   ];
 
@@ -145,15 +146,19 @@ class AegisEffectButton(QPushButton):
         self._shimmer_pos = -1.0
         self._is_pressed = False
         self._pulse_alpha = 180
+        self._scale_factor = 1.0
         
         # Audio effect
         self.sound_effect = None
         ${effects.soundClickFeedback ? `
         sound_path = os.path.join(os.path.dirname(__file__), "Assets", "audio", "click.wav")
         if os.path.exists(sound_path):
-            self.sound_effect = QSoundEffect(self)
-            self.sound_effect.setSource(QUrl.fromLocalFile(sound_path))
-            self.sound_effect.setVolume(0.5)
+            try:
+                self.sound_effect = QSoundEffect(self)
+                self.sound_effect.setSource(QUrl.fromLocalFile(sound_path))
+                self.sound_effect.setVolume(0.5)
+            except Exception:
+                self.sound_effect = None
         ` : ''}
 
         # Animations setup
@@ -168,6 +173,12 @@ class AegisEffectButton(QPushButton):
         self.shimmer_anim = QPropertyAnimation(self, b"shimmer_offset")
         self.shimmer_anim.setDuration(600)
         self.shimmer_anim.setEasingCurve(QEasingCurve.Type.InOutSine)
+        ` : ''}
+
+        ${effects.scaleBounceOnHover ? `
+        self.scale_anim = QPropertyAnimation(self, b"scale_factor")
+        self.scale_anim.setDuration(180)
+        self.scale_anim.setEasingCurve(QEasingCurve.Type.OutCubic)
         ` : ''}
 
         ${effects.neonPulseBorder ? `
@@ -205,6 +216,13 @@ class AegisEffectButton(QPushButton):
         self._pulse_alpha = val
         self.update()
     pulse_alpha = pyqtProperty(int, get_pulse_alpha, set_pulse_alpha)
+
+    def get_scale_factor(self):
+        return self._scale_factor
+    def set_scale_factor(self, s):
+        self._scale_factor = s
+        self.update()
+    scale_factor = pyqtProperty(float, get_scale_factor, set_scale_factor)
 
     def _reset_ripple(self):
         self._ripple_rad = 0.0
@@ -245,32 +263,56 @@ class AegisEffectButton(QPushButton):
     def enterEvent(self, event):
         super().enterEvent(event)
         ${effects.hoverGlowShimmer ? `
-        if self.isEnabled():
+        if self.isEnabled() and hasattr(self, 'shimmer_anim'):
             self.shimmer_anim.stop()
             self.shimmer_anim.setStartValue(0.0)
             self.shimmer_anim.setEndValue(1.0)
             self.shimmer_anim.start()
         ` : ''}
+        ${effects.scaleBounceOnHover ? `
+        if self.isEnabled() and hasattr(self, 'scale_anim'):
+            self.scale_anim.stop()
+            self.scale_anim.setStartValue(self._scale_factor)
+            self.scale_anim.setEndValue(1.04)
+            self.scale_anim.start()
+        ` : ''}
 
     def leaveEvent(self, event):
         super().leaveEvent(event)
         self._shimmer_pos = -1.0
+        ${effects.scaleBounceOnHover ? `
+        if hasattr(self, 'scale_anim'):
+            self.scale_anim.stop()
+            self.scale_anim.setStartValue(self._scale_factor)
+            self.scale_anim.setEndValue(1.0)
+            self.scale_anim.start()
+        ` : ''}
         self.update()
 
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton and self.isEnabled():
             self._is_pressed = True
             ${effects.soundClickFeedback ? `
-            if self.sound_effect:
-                self.sound_effect.play()
+            sound_path = os.path.join(os.path.dirname(__file__), "Assets", "audio", "click.wav")
+            if winsound and os.path.exists(sound_path):
+                try:
+                    winsound.PlaySound(sound_path, winsound.SND_ASYNC | winsound.SND_FILENAME)
+                except Exception:
+                    pass
+            elif self.sound_effect:
+                try:
+                    self.sound_effect.play()
+                except Exception:
+                    pass
             ` : ''}
             ${effects.rippleEffect ? `
             self._ripple_center = event.position().toPoint()
             max_dim = max(self.width(), self.height()) * 1.5
-            self.ripple_anim.stop()
-            self.ripple_anim.setStartValue(0.0)
-            self.ripple_anim.setEndValue(max_dim)
-            self.ripple_anim.start()
+            if hasattr(self, 'ripple_anim'):
+                self.ripple_anim.stop()
+                self.ripple_anim.setStartValue(0.0)
+                self.ripple_anim.setEndValue(max_dim)
+                self.ripple_anim.start()
             ` : ''}
         super().mousePressEvent(event)
         self.update()
@@ -288,7 +330,7 @@ class AegisEffectButton(QPushButton):
         ${effects.pressedDepthOffset ? `
         # Visual depth push feedback
         if self._is_pressed:
-            painter.fillRect(self.rect(), QColor(0, 0, 0, 35))
+            painter.fillRect(self.rect(), QColor(0, 0, 0, 40))
         ` : ''}
 
         ${effects.hoverGlowShimmer ? `

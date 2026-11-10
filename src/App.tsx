@@ -791,7 +791,8 @@ export default function App() {
     setColorTextBadge(badge);
   };
 
-  const generatePowerShellScript = () => {
+  const generatePowerShellScript = (effectsConfig?: InstallerEffectConfig) => {
+    const activeEffects = effectsConfig || installerEffects;
     const eName = escapeXml(gameName);
     const eAuthor = escapeXml(author);
     const eGameVersion = escapeXml(gameVersion);
@@ -865,18 +866,28 @@ try {
     <Window.Resources>
         <Style TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border Name="border" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="2">
+                        <Border Name="border" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4" RenderTransformOrigin="0.5,0.5">
+                            <Border.RenderTransform>
+                                <TransformGroup>
+                                    <ScaleTransform ScaleX="1" ScaleY="1"/>
+                                    <TranslateTransform X="0" Y="0"/>
+                                </TransformGroup>
+                            </Border.RenderTransform>
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="Opacity" Value="0.8"/>
+                                <Setter TargetName="border" Property="Opacity" Value="0.88"/>
+                                ${activeEffects.scaleBounceOnHover ? '<Setter TargetName="border" Property="RenderTransform"><Setter.Value><ScaleTransform ScaleX="1.04" ScaleY="1.04"/></Setter.Value></Setter>' : ''}
+                                ${activeEffects.hoverGlowShimmer ? `<Setter TargetName="border" Property="Effect"><Setter.Value><DropShadowEffect Color="${eColorAccent}" BlurRadius="12" ShadowDepth="0" Opacity="0.7"/></Setter.Value></Setter>` : ''}
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="border" Property="Opacity" Value="0.6"/>
+                                <Setter TargetName="border" Property="Opacity" Value="0.75"/>
+                                ${activeEffects.pressedDepthOffset ? '<Setter TargetName="border" Property="RenderTransform"><Setter.Value><TranslateTransform Y="1.5"/></Setter.Value></Setter>' : ''}
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter TargetName="border" Property="Opacity" Value="0.4"/>
@@ -1097,6 +1108,43 @@ try {
     $ThankYouCloseBtn = $Form.FindName("ThankYouCloseBtn")
     $ThankYouSupportBtn = $Form.FindName("ThankYouSupportBtn")
     ` : ''}
+
+    # --- Active Effects Helpers ---
+    $clickAudioPath = Join-Path $PSScriptRoot "Assets\\audio\\click.wav"
+    $soundPlayer = $null
+    if (Test-Path $clickAudioPath) {
+        try {
+            $soundPlayer = New-Object System.Media.SoundPlayer($clickAudioPath)
+            $soundPlayer.Load()
+        } catch { }
+    }
+
+    function Play-ClickSound {
+        if ($soundPlayer) {
+            try { $soundPlayer.Play() } catch { }
+        }
+    }
+
+    function Invoke-ShakeAnimation($element) {
+        if (-not $element) { return }
+        try {
+            $tt = New-Object System.Windows.Media.TranslateTransform
+            $element.RenderTransform = $tt
+            $anim = New-Object System.Windows.Media.Animation.DoubleAnimation
+            $anim.From = -8.0
+            $anim.To = 8.0
+            $anim.AutoReverse = $true
+            $anim.RepeatBehavior = New-Object System.Windows.Media.Animation.RepeatBehavior(3)
+            $anim.Duration = New-Object System.Windows.Duration([timespan]::FromMilliseconds(40))
+            $tt.BeginAnimation([System.Windows.Media.TranslateTransform]::XProperty, $anim)
+        } catch { }
+    }
+
+    if (${activeEffects.soundClickFeedback ? '$true' : '$false'}) {
+        @($InstallButton, $BrowseButton, $CloseButton, $CloseButtonTop, $UninstallButton, $CloseQrButton, $CloseChangelogButton) | Where-Object { $null -ne $_ } | ForEach-Object {
+            $_.Add_PreviewMouseDown({ Play-ClickSound })
+        }
+    }
 
     ${gamePlatform === 'steam' && steamAppId ? `
     # Auto-detect game path via Steam App ID
@@ -1589,6 +1637,10 @@ try {
         }
         $selectedPath = $PathTextBox.Text
         if ([string]::IsNullOrWhiteSpace($selectedPath) -or !(Test-Path $selectedPath)) {
+            if (${activeEffects.shakeErrorAnimation ? '$true' : '$false'}) {
+                Invoke-ShakeAnimation $PathTextBox
+                Invoke-ShakeAnimation $InstallButton
+            }
             [System.Windows.Forms.MessageBox]::Show("${t.scriptErrInvalidPath}", "${t.scriptFailTitle}", 0, 16)
             return
         }
@@ -1612,6 +1664,10 @@ try {
         }
         
         if (-not $isValid) {
+            if (${activeEffects.shakeErrorAnimation ? '$true' : '$false'}) {
+                Invoke-ShakeAnimation $PathTextBox
+                Invoke-ShakeAnimation $InstallButton
+            }
             $msgResult = [System.Windows.Forms.MessageBox]::Show("${t.scriptErrMismatchText}", "${t.scriptErrMismatchTitle}", 4, 48)
             if ($msgResult -ne 6) {
                 return
@@ -2026,11 +2082,29 @@ try {
   const generateBatchScript = () => {
     return `@echo off
 chcp 65001 >nul
-if not exist "%~dp0Install.ps1" (
-     powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "Add-Type -AssemblyName PresentationFramework; [System.Windows.MessageBox]::Show('${t.scriptBatchErrorExtract}', '${t.scriptFailTitle}', 0, 16)"
+
+rem 1. Check if files are extracted
+if not exist "%~dp0Install.ps1" if not exist "%~dp0installer.py" (
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "Add-Type -AssemblyName PresentationFramework; [System.Windows.MessageBox]::Show('${t.scriptBatchErrorExtract}', '${t.scriptFailTitle}', 0, 16)"
     exit /b 1
 )
+
 echo ${t.scriptBatchEcho}
+
+rem 2. Try launching standalone executable if compiled
+if exist "%~dp0installer.exe" (
+    start "" "%~dp0installer.exe"
+    exit /b 0
+)
+
+rem 3. Try launching PyQt6 modern installer if Python is available
+where python >nul 2>nul
+if %ERRORLEVEL% equ 0 if exist "%~dp0installer.py" (
+    python "%~dp0installer.py"
+    if %ERRORLEVEL% equ 0 exit /b 0
+)
+
+rem 4. Primary universal Windows fallback (Install.ps1 with full visual effects)
 powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Install.ps1"`;
   };
 
@@ -2160,7 +2234,7 @@ powershell.exe -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Inst
     try {
       const zip = new JSZip();
       
-      const rawPS1 = generatePowerShellScript();
+      const rawPS1 = generatePowerShellScript(installerEffects);
       
       // Validation for unbalanced brackets in PowerShell script
       let bracketCount = 0;
