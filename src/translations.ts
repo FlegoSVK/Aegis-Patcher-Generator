@@ -163,7 +163,7 @@ export const translations = {
     scriptBrowseTitle: 'Vyberte hlavnú zložku hry',
     scriptErrInvalidPath: 'Prosím, vyberte platnú cestu k hre.',
     scriptErrMismatchTitle: 'Upozornenie',
-    scriptErrMismatchText: 'Vybraná cesta ($selectedPath) sa pravdepodobne nezhoduje s očakávanou hrou ($ValidationPath).\\n\\nChcete napriek tomu inštalovať do tejto zložky?',
+    scriptErrMismatchText: 'Vybraná cesta ($selectedPath) sa pravdepodobne nezhoduje s očakávanou hrou ($ValidationPath).`n`nChcete napriek tomu inštalovať do tejto zložky?',
     scriptInstalling: 'Inštalujem...',
     scriptCopying: 'Kopírujem:',
     scriptSuccess: 'Inštalácia bola úspešná!',
@@ -179,6 +179,8 @@ export const translations = {
     scriptRestoring: 'Obnovujem:',
     scriptUninstallSuccess: 'Odinštalácia bola úspešná!',
     scriptBackupMissing: 'Záloha neexistuje, pôvodné súbory nebolo možné obnoviť.',
+    scriptAdminNoticeTitle: 'Upozornenie správcu',
+    scriptAdminNoticeMsg: 'Inštalátor nie je spustený s právami správcu (Administrator).\nAk je hra nainštalovaná v chránenom priečinku (napr. Program Files), inštalácia môže zlyhať na nedostatočných oprávneniach.\n\nV prípade problémov spustite "Spustit_Preklad.bat" pravým tlačidlom myši ako Správca.',
     
     // Readme text
     readmeSupportTitle: '--- PODPORA PREKLADU ---',
@@ -388,7 +390,7 @@ export const translations = {
     scriptBrowseTitle: 'Vyberte hlavní složku hry',
     scriptErrInvalidPath: 'Prosím, vyberte platnou cestu k hře.',
     scriptErrMismatchTitle: 'Upozornění',
-    scriptErrMismatchText: 'Vybraná cesta ($selectedPath) se pravděpodobně neshoduje s očekávanou hrou ($ValidationPath).\\n\\nChcete přesto instalovat do této složky?',
+    scriptErrMismatchText: 'Vybraná cesta ($selectedPath) se pravděpodobně neshoduje s očekávanou hrou ($ValidationPath).`n`nChcete přesto instalovat do této složky?',
     scriptInstalling: 'Instaluji...',
     scriptCopying: 'Kopíruji:',
     scriptSuccess: 'Instalace byla úspěšná!',
@@ -404,6 +406,8 @@ export const translations = {
     scriptRestoring: 'Obnovuji:',
     scriptUninstallSuccess: 'Odinstalace byla úspěšná!',
     scriptBackupMissing: 'Záloha neexistuje, původní soubory nebylo možné obnovit.',
+    scriptAdminNoticeTitle: 'Upozornění správce',
+    scriptAdminNoticeMsg: 'Instalátor není spuštěn s právy správce (Administrator).\nPokud je hra nainstalována v chráněné složce (např. Program Files), instalace může selhat na nedostatečných oprávněních.\n\nV případě potíží spusťte "Spustit_Preklad.bat" pravým tlačítkem myši jako Správce.',
     
     // Readme text
     readmeSupportTitle: '--- PODPORA PŘEKLADU ---',

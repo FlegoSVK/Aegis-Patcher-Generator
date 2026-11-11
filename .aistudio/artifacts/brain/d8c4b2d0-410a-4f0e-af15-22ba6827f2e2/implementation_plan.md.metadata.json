@@ -1,6 +1,6 @@
 {
-  "summary":  "Plán vylepšenia grafickej stránky aplikácie a ovládacích prvkov v štýle Sleek Modern Studio (tmavý grafit, sklenený glassmorphism, jemné prémiové zaoblenie a novonavrhnuté štylizované taktické logo štítu Aegis s geometriou písmena A a svetelnou aurou v hlavičke). Žiadne funkčné systémy nebudú menené.",
-  "updatedAt":  "2026-11-10T11:54:11.573379228Z",
+  "summary":  "Hĺbková kontrola a plán obnovy 100 % spoľahlivosti exportovaných inštalátorov Aegis Patcher na všetkých Windows počítačoch. Rieši čisté spúšťanie cez overený PowerShell WPF engine a bezpečné zapracovanie natívnych efektov bez rizika zlyhania.",
+  "updatedAt":  "2026-11-11T08:39:21.723391089Z",
   "requestFeedback":  true,
   "userFacing":  true
 }
