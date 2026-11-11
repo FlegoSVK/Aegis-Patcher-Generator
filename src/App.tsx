@@ -377,6 +377,42 @@ export default function App() {
   const [showFullscreenQrMockup, setShowFullscreenQrMockup] = useState(false);
   const [showChangelogMockup, setShowChangelogMockup] = useState(false);
   const [showIbanCopied, setShowIbanCopied] = useState(false);
+
+  // Helper to convert base64 dataURL to a File object
+  const dataURLtoFile = (dataurl: string, filename: string): File | null => {
+    try {
+      const arr = dataurl.split(',');
+      const mimeMatch = arr[0].match(/:(.*?);/);
+      const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+      const bstr = atob(arr[1]);
+      let n = bstr.length;
+      const u8arr = new Uint8Array(n);
+      while (n--) {
+        u8arr[n] = bstr.charCodeAt(n);
+      }
+      return new File([u8arr], filename, { type: mime });
+    } catch (e) {
+      console.error('Failed to parse persistent QR code file', e);
+      return null;
+    }
+  };
+
+  // Load persistent QR Code on initial mount
+  useEffect(() => {
+    try {
+      const savedQrData = localStorage.getItem('aegis_persistent_qrcode_data');
+      const savedQrName = localStorage.getItem('aegis_persistent_qrcode_name') || 'qrcode.jpg';
+      if (savedQrData) {
+        setQrCodePreview(savedQrData);
+        const reconstructedFile = dataURLtoFile(savedQrData, savedQrName);
+        if (reconstructedFile) {
+          setQrCodeFile(reconstructedFile);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load persistent QR code', e);
+    }
+  }, []);
   
   const [showValidationErrors, setShowValidationErrors] = useState(false);
   const [history, setHistory] = useState<GameSettings[]>([]);
@@ -432,8 +468,17 @@ export default function App() {
     setColorTextBadge('#F5F7F2');
     setBannerPreview(null);
     setBannerFile(null);
-    setQrCodePreview(null);
-    setQrCodeFile(null);
+    // Zachovanie perzistentného QR kódu pre každé ďalšie použitie
+    const persistentQrData = localStorage.getItem('aegis_persistent_qrcode_data');
+    const persistentQrName = localStorage.getItem('aegis_persistent_qrcode_name') || 'qrcode.jpg';
+    if (persistentQrData) {
+      setQrCodePreview(persistentQrData);
+      const reconstructed = dataURLtoFile(persistentQrData, persistentQrName);
+      setQrCodeFile(reconstructed);
+    } else {
+      setQrCodePreview(null);
+      setQrCodeFile(null);
+    }
     setTranslationFiles([]);
     setPostToolFiles([]);
     setFullWindowBackground(true);
@@ -547,8 +592,15 @@ export default function App() {
       const file = e.target.files[0];
       const reader = new FileReader();
       reader.onload = (event) => {
-        setQrCodePreview(event.target?.result as string);
+        const dataUrl = event.target?.result as string;
+        setQrCodePreview(dataUrl);
         setQrLoadError(false);
+        try {
+          localStorage.setItem('aegis_persistent_qrcode_data', dataUrl);
+          localStorage.setItem('aegis_persistent_qrcode_name', file.name || 'qrcode.jpg');
+        } catch (err) {
+          console.error('Failed to save QR code to localStorage', err);
+        }
       };
       reader.readAsDataURL(file);
       setQrCodeFile(file);
@@ -574,21 +626,33 @@ export default function App() {
 
   const onImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
     const { width, height } = e.currentTarget;
-    const aspect = 540 / 140;
-    const initialCrop = centerCrop(
-      makeAspectCrop(
-        {
-          unit: '%',
-          width: 90,
-        },
-        aspect,
-        width,
-        height
-      ),
-      width,
-      height
-    );
+    const aspect = 540 / 140; // ~3.857:1
+    const imgAspect = width / height;
+
+    // Najväčšia možná veľkosť výrezu so zachovaním pomeru strán 540:140
+    let cropWidth: number;
+    let cropHeight: number;
+
+    if (imgAspect > aspect) {
+      // Obrázok je širší ako pomer bannera - výška výrezu bude 100% výšky obrázka
+      cropHeight = height;
+      cropWidth = height * aspect;
+    } else {
+      // Obrázok je vyšší ako pomer bannera - šírka výrezu bude 100% šírky obrázka
+      cropWidth = width;
+      cropHeight = width / aspect;
+    }
+
+    const initialCrop: PixelCrop = {
+      unit: 'px',
+      x: (width - cropWidth) / 2,
+      y: (height - cropHeight) / 2,
+      width: cropWidth,
+      height: cropHeight,
+    };
+
     setCrop(initialCrop);
+    setCompletedCrop(initialCrop);
   };
 
   const handleSaveCrop = async () => {
@@ -3453,7 +3517,15 @@ if %ERRORLEVEL% neq 0 (
                 )}
                 <div className="absolute inset-0 bg-black/70 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                   <button 
-                    onClick={() => { setQrCodePreview(null); setQrCodeFile(null); setQrLoadError(false); }}
+                    onClick={() => { 
+                      setQrCodePreview(null); 
+                      setQrCodeFile(null); 
+                      setQrLoadError(false); 
+                      try {
+                        localStorage.removeItem('aegis_persistent_qrcode_data');
+                        localStorage.removeItem('aegis_persistent_qrcode_name');
+                      } catch (err) { }
+                    }}
                     className="px-2 py-1 bg-red-900/80 hover:bg-red-800 text-white text-[10px] font-bold uppercase tracking-wider rounded transition-colors"
                   >
                     {t.deleteBtn}
